@@ -4,12 +4,12 @@ from typing import List, Optional
 from pydantic import (
     Field,
     FilePath,
-    root_validator,
-    validator,
+    field_validator,
+    model_validator,
 )
-from models.data_collections import DataCollection, WildcardRegexBase
-from models.users import Permission
-from models.base import MongoModel, PyObjectId
+from depictio_models.models.data_collections import DataCollection, WildcardRegexBase
+from depictio_models.models.users import Permission
+from depictio_models.models.base import MongoModel, PyObjectId
 
 
 class WildcardRegex(WildcardRegexBase):
@@ -31,16 +31,15 @@ class File(MongoModel):
     run_id: Optional[str] = None
     registration_time: datetime = datetime.now()
     wildcards: Optional[List[WildcardRegex]]
-    permissions: Optional[Permission] = {"owners": [], "viewers": []}
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
     def set_default_id(cls, values):
         if values is None or "id" not in values or values["id"] is None:
             return values  # Ensure we don't proceed if values is None
         values["id"] = PyObjectId()
         return values
 
-    @validator("creation_time", pre=True, always=True)
+    @field_validator("creation_time", mode="before")
     def validate_creation_time(cls, value):
         if type(value) is not datetime:
             try:
@@ -51,7 +50,7 @@ class File(MongoModel):
         else:
             return value.strftime("%Y-%m-%d %H:%M:%S")
 
-    @validator("modification_time", pre=True, always=True)
+    @field_validator("modification_time", mode="before")
     def validate_modification_time(cls, value):
         if type(value) is not datetime:
             try:
@@ -62,7 +61,7 @@ class File(MongoModel):
         else:
             return value.strftime("%Y-%m-%d %H:%M:%S")
 
-    @validator("file_location")
+    @field_validator("file_location")
     def validate_location(cls, value):
         if not os.path.exists(value):
             raise ValueError(f"The file '{value}' does not exist.")
@@ -73,7 +72,7 @@ class File(MongoModel):
         return value
 
     # TODO: Implement file hashing to ensure file integrity
-    # @validator("file_hash")
+    # @field_validator("file_hash")
     # def validate_file_hash(cls, value):
     #     if value is not None:
     #         if not isinstance(value, str):

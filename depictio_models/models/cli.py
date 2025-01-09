@@ -1,21 +1,21 @@
 
 from datetime import datetime
 import re
-from typing import Dict, Optional, Tuple, List
-from pydantic import BaseModel, validator, Field
+from typing import List
+from pydantic import BaseModel, field_validator
 
 class TokenData(BaseModel):
     name: str
     access_token: str
     expire_datetime: str
 
-    @validator("access_token")
+    @field_validator("access_token")
     def validate_access_token(cls, v):
         if not v:
             raise ValueError("Access token cannot be empty")
         return v
 
-    @validator("expire_datetime")
+    @field_validator("expire_datetime")
     def validate_expire_datetime(cls, v):
         if not v:
             raise ValueError("Expire datetime cannot be empty")
@@ -38,7 +38,7 @@ class CLIConfig(BaseModel):
     api_base_url: str
     user: UserCLIConfig
 
-    @validator("api_base_url")
+    @field_validator("api_base_url")
     def validate_api_base_url(cls, v):
         """
         Validates that the URL starts with http:// or https:// and,

@@ -1,16 +1,12 @@
 from datetime import datetime
-from pathlib import Path
 from typing import Dict, List, Optional, Union
 from bson import ObjectId
 from pydantic import (
     BaseModel,
-    Field,
-    root_validator,
-    validator,
+    field_validator,
 )
-from models.users import User, UserBase
-
-from models.base import MongoModel, PyObjectId
+from depictio_models.models.users import UserBase
+from depictio_models.models.base import MongoModel, PyObjectId
 
 
 class DeltaTableColumn(BaseModel):
@@ -19,7 +15,7 @@ class DeltaTableColumn(BaseModel):
     description: Optional[str] = None  # Optional description
     specs: Optional[Dict] = None
 
-    @validator("type")
+    @field_validator("type")
     def validate_column_type(cls, v):
         allowed_values = [
             "string",
@@ -45,7 +41,7 @@ class Aggregation(MongoModel):
     aggregation_hash: str
     aggregation_columns_specs: List[DeltaTableColumn] = []
 
-    # @validator("aggregation_time", pre=True, always=True)
+    # @field_validator("aggregation_time", pre=True, always=True)
     # def validate_creation_time(cls, value):
     #     if type(value) is not datetime:
     #         try:
@@ -56,7 +52,7 @@ class Aggregation(MongoModel):
     #     else:
     #         return value.strftime("%Y-%m-%d %H:%M:%S")
 
-    @validator("aggregation_version")
+    @field_validator("aggregation_version")
     def validate_version(cls, value):
         if not isinstance(value, int):
             raise ValueError("version must be an integer")
@@ -100,7 +96,7 @@ class DeltaTableAggregated(MongoModel):
             )
         return NotImplemented
 
-    # @validator("aggregation")
+    # @field_validator("aggregation")
     # def validate_aggregation(cls, value):
     #     if not isinstance(value, list):
     #         raise ValueError("aggregation must be a list")

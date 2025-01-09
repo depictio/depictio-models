@@ -3,28 +3,26 @@ import os
 from typing import Dict, List, Optional
 import bleach
 import re
-from bson import ObjectId
 from pydantic import (
     BaseModel,
     Field,
-    validator,
-    root_validator,
+    field_validator,
+    model_validator,
 )
-from models.files import File
-from models.users import Permission
-from models.base import DirectoryPath, HashModel, MongoModel, PyObjectId
-from models.data_collections import DataCollection
+from depictio_models.models.files import File
+from depictio_models.models.users import Permission
+from depictio_models.models.base import DirectoryPath, HashModel, MongoModel, PyObjectId
+from depictio_models.models.data_collections import DataCollection
 class WorkflowConfig(MongoModel):
     # id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
     # parent_runs_location: List[DirectoryPath]
     # FIXME: Change parent_runs_location to a list of DirectoryPath
     parent_runs_location: List[str]
-    workflow_version: Optional[str]
-    config: Optional[Dict]
-    runs_regex: Optional[str]
+    workflow_version: Optional[str] = None
+    runs_regex: str
 
     # Update below to allow for multiple run locations and check that they exist
-    @validator("parent_runs_location")
+    @field_validator("parent_runs_location", mode="before")
     def validate_run_location(cls, value):
         if not isinstance(value, list):
             raise ValueError("run_location must be a list")
@@ -40,7 +38,7 @@ class WorkflowConfig(MongoModel):
                 # logger.warning(f"'{location}' is not readable.")
         return value
 
-    @validator("runs_regex")
+    @field_validator("runs_regex", mode="before")
     def validate_regex(cls, v):
         try:
             re.compile(v)
@@ -50,8 +48,8 @@ class WorkflowConfig(MongoModel):
 
 
 class WorkflowRun(MongoModel):
-    id: Optional[PyObjectId] = None
-    # id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    # id: Optional[PyObjectId] = None
+    id: PyObjectId = Field(default_factory=None, alias="_id")
     workflow_id: PyObjectId
     run_tag: str
     files: List[File] = []
@@ -62,26 +60,26 @@ class WorkflowRun(MongoModel):
     registration_time: datetime = datetime.now()
 
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
     def set_default_id(cls, values):
         if values is None or "id" not in values or values["id"] is None:
             return values  # Ensure we don't proceed if values is None
         values["id"] = PyObjectId()
         return values
 
-    @validator("files")
+    @field_validator("files", mode="before")
     def validate_files(cls, value):
         if not isinstance(value, list):
             raise ValueError("files must be a list")
         return value
 
-    @validator("workflow_config")
+    @field_validator("workflow_config", mode="before")
     def validate_workflow_config(cls, value):
         if not isinstance(value, WorkflowConfig):
             raise ValueError("workflow_config must be a WorkflowConfig")
         return value
 
-    @validator("execution_time", pre=True, always=True)
+    @field_validator("execution_time", mode="before")
     def validate_creation_time(cls, value):
         if type(value) is not datetime:
             try:
@@ -92,7 +90,7 @@ class WorkflowRun(MongoModel):
         else:
             return value.strftime("%Y-%m-%d %H:%M:%S")
 
-    @validator("registration_time", pre=True, always=True)
+    @field_validator("registration_time", mode="before")
     def validate_registration_time(cls, value):
         if type(value) is not datetime:
             try:
@@ -109,7 +107,7 @@ class WorkflowSystem(BaseModel):
     engine_version: Optional[str]
     workflow_engine: Optional[str]
 
-    @validator("workflow_engine")
+    @field_validator("workflow_engine", mode="before")
     def validate_workflow_engine_value(cls, value):
         allowed_values = [
             "snakemake",
@@ -123,7 +121,7 @@ class WorkflowSystem(BaseModel):
             raise ValueError(f"workflow_engine must be one of {allowed_values}")
         return value
 
-    @validator("workflow_language")
+    @field_validator("workflow_language", mode="before")
     def validate_workflow_language_value(cls, value):
         allowed_values = [
             "snakemake",
@@ -140,8 +138,8 @@ class WorkflowSystem(BaseModel):
 
 class Workflow(MongoModel):
     # id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
-    id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
-    # id: Optional[PyObjectId] = Field(default=None, alias='_id')
+    # id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
+    id: PyObjectId = Field(default=None, alias='_id')
     name: str
     engine: str
     workflow_tag: str
@@ -149,24 +147,23 @@ class Workflow(MongoModel):
     description: str
     repository_url: Optional[str]
     data_collections: List[DataCollection]
+    # data_collections: List[str]
     runs: Optional[Dict[str, WorkflowRun]] = dict()
     config: WorkflowConfig
     registration_time: datetime = datetime.now()
     # data_collection_ids: Optional[List[str]] = []
-    permissions: Optional[Permission] = {"owners": [], "viewers": []}
-    hash: Optional[str] = None  # Change this to expect a string
 
 
-    class Config:
-        arbitrary_types_allowed = True
-        json_encoders = {
-            ObjectId: lambda oid: str(oid),  # or `str` for simplicity
-        }
+    # class Config:
+    #     arbitrary_types_allowed = True
+    #     json_encoders = {
+    #         ObjectId: lambda oid: str(oid),  # or `str` for simplicity
+    #     }
 
 
 
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
     def compute_and_assign_hash(cls, values):
         # Copy the values to avoid mutating the input directly
         values_copy = values.copy()
@@ -184,31 +181,31 @@ class Workflow(MongoModel):
             return all(getattr(self, field) == getattr(other, field) for field in self.__fields__.keys() if field not in ["id", "registration_time"])
         return NotImplemented
 
-    @validator("name", pre=True, always=True)
+    @field_validator("name", mode="before")
     def validate_name(cls, value):
         if not value:
             raise ValueError("name is required")
         return value
 
-    @validator("engine", pre=True, always=True)
+    @field_validator("engine", mode="before")
     def validate_engine(cls, value):
         if not value:
             raise ValueError("engine is required")
         return value
 
-    @validator("repository_url", pre=True, always=True)
+    @field_validator("repository_url", mode="before")
     def validate_repository(cls, value):
         if not re.match(r"^(https?|git)://", value):
             raise ValueError("Invalid repository URL")
         return value
 
-    # @validator("id", pre=True, always=True)
+    # @field_validator("id", mode="before")
     # def validate_id(cls, id):
     #     if not id:
     #         raise ValueError("id is required")
     #     return id
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
     def set_workflow_tag(cls, values):
         # print(f"Received values: {values}")
 
@@ -220,7 +217,7 @@ class Workflow(MongoModel):
 
 
 
-    @validator("description", pre=True, always=True)
+    @field_validator("description", mode="before")
     def sanitize_description(cls, value):
         # Strip any HTML tags and attributes
         sanitized = bleach.clean(value, tags=[], attributes={}, strip=True)
@@ -228,19 +225,19 @@ class Workflow(MongoModel):
         max_length = 500  # Set as per your needs
         return sanitized[:max_length]
 
-    @validator("data_collections")
+    @field_validator("data_collections", mode="before")
     def validate_data_collections(cls, value):
         if not isinstance(value, list):
             raise ValueError("data_collections must be a list")
         return value
 
-    @validator("runs")
+    @field_validator("runs", mode="before")
     def validate_runs(cls, value):
         if not isinstance(value, dict):
             raise ValueError("runs must be a dictionary")
         return value
 
-    # @validator("permissions", always=True)
+    # @field_validator("permissions", mode="before")
     # def set_default_permissions(cls, value, values):
     #     if not value:
     #         # Here we initialize the owners to include the creator by default.
