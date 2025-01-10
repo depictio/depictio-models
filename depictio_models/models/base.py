@@ -39,10 +39,7 @@ class PyObjectId(ObjectId):
         """
         Defines the core schema for PyObjectId.
         """
-        return core_schema.no_info_after_validator_function(
-            cls.validate,
-            core_schema.union_schema([core_schema.str_schema(), core_schema.is_instance_schema(ObjectId)])
-        )
+        return core_schema.no_info_after_validator_function(cls.validate, core_schema.union_schema([core_schema.str_schema(), core_schema.is_instance_schema(ObjectId)]))
 
     @classmethod
     def validate(cls, v):
@@ -60,7 +57,6 @@ class PyObjectId(ObjectId):
     #     json_schema = handler(core_schema)
     #     json_schema.update(type="string", format="objectid")
     #     return json_schema
-
 
     # def __str__(self):
     #     """
@@ -84,8 +80,7 @@ class PyObjectId(ObjectId):
 
 
 class MongoModel(BaseModel):
-    id: Optional[PyObjectId] = Field(default=None, alias="_id")  # Handles MongoDB `_id`
-
+    id: PyObjectId = Field(default=PyObjectId(), alias="_id")  # Handles MongoDB `_id`
 
     class Config:
         allow_population_by_field_name = True
@@ -136,7 +131,6 @@ class MongoModel(BaseModel):
 
         return parsed
 
-
     @model_validator(mode="before")
     @classmethod
     def ensure_id(cls, values: dict) -> dict:
@@ -153,6 +147,7 @@ class MongoModel(BaseModel):
             # Generate a new ObjectId if no valid ID is provided
             values["_id"] = PyObjectId()
         return values
+
 
 # class MongoModel(BaseModel):
 #     class Config:

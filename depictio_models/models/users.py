@@ -145,37 +145,42 @@ class Permission(BaseModel):
     def dict(self, **kwargs):
         # Generate list of owner and viewer dictionaries
         owners_list = [owner.model_dump(**kwargs) for owner in self.owners]
+        editors_list = [editor.model_dump(**kwargs) for editor in self.editors]
         viewers_list = [viewer.model_dump(**kwargs) if isinstance(viewer, UserBase) else viewer for viewer in self.viewers]
-        return {"owners": owners_list, "viewers": viewers_list}
+        return {"owners": owners_list, "editors": editors_list, "viewers": viewers_list}
 
-    @field_validator("owners", "viewers", mode="before")
-    def convert_dict_to_user(cls, v):
-        if isinstance(v, dict):
-            return UserBase(**v)  # Assuming `UserBase` can be instantiated from a dict
-        elif isinstance(v, str) and v == "*":
-            return v  # Allow wildcard "*" for public workflows in viewers
-        elif not isinstance(v, UserBase):
-            raise ValueError("Owners must be UserBase instances, and viewers must be either UserBase or '*'")
-        return v
+    # Step 1: Convert lists to UserBase or validate items
+    @field_validator("owners", "editors", "viewers", mode="before")
+    def convert_list_to_userbase(cls, v):
+        if not isinstance(v, list):
+            raise ValueError(f"Expected a list, got {type(v)}")
+        
+        result = []
+        for item in v:
+            logger.debug(f"Converting {item} to UserBase")
+            if isinstance(item, dict):
+                result.append(UserBase(**item))  # Convert dictionary to UserBase
+            elif isinstance(item, str) and item == "*":
+                result.append(item)  # Allow wildcard "*" for viewers
+            elif isinstance(item, UserBase):
+                result.append(item)  # Already a UserBase instance
+            else:
+                raise ValueError("Owners, editors, and viewers must be UserBase instances or valid types")
+        return result
 
-    @model_validator(mode="before")
-    def validate_permissions(cls, values):
-        owners = values.get("owners", [])
-        viewers = values.get("viewers", [])
-        # Uncomment the following line if you want to enforce at least one owner.
-        # if not owners:
-        #     raise ValueError("At least one owner is required.")
-        return values
-
-    # Here we ensure that there are no duplicate users across owners and viewers
-    @model_validator(mode="before")
+    # Step 2: Validate permissions after field-level validation
+    @model_validator(mode="after")
     def ensure_owners_and_viewers_are_unique(cls, values):
-        owners = values.get("owners", [])
-        viewers = values.get("viewers", [])
+        owners = values.owners
+        editors = values.editors
+        viewers = values.viewers
         logger.debug(f"Owners: {owners}")
-        owner_ids = {owner["id"] for owner in owners}
-        editor_ids = {editor["id"] for editor in viewers if isinstance(editor, UserBase)}
-        viewer_ids = {viewer["id"] for viewer in viewers if isinstance(viewer, UserBase)}
+        logger.debug(f"Editors: {editors}")
+        logger.debug(f"Viewers: {viewers}")
+
+        owner_ids = {owner.id for owner in owners}
+        editor_ids = {editor.id for editor in editors if isinstance(editor, UserBase)}
+        viewer_ids = {viewer.id for viewer in viewers if isinstance(viewer, UserBase)}
 
         if not owner_ids.isdisjoint(editor_ids):
             raise ValueError("A User cannot be both an owner and an editor.")

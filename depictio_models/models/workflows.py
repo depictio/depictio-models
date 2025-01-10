@@ -13,30 +13,42 @@ from depictio_models.models.files import File
 from depictio_models.models.users import Permission
 from depictio_models.models.base import DirectoryPath, HashModel, MongoModel, PyObjectId
 from depictio_models.models.data_collections import DataCollection
+from depictio_models.logging import logger
+
 class WorkflowConfig(MongoModel):
-    # id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
     # parent_runs_location: List[DirectoryPath]
     # FIXME: Change parent_runs_location to a list of DirectoryPath
     parent_runs_location: List[str]
     workflow_version: Optional[str] = None
     runs_regex: str
+    context: str = Field(default="CLI")
 
-    # Update below to allow for multiple run locations and check that they exist
-    @field_validator("parent_runs_location", mode="before")
-    def validate_run_location(cls, value):
-        if not isinstance(value, list):
-            raise ValueError("run_location must be a list")
-        for location in value:
-            if not os.path.exists(location):
-                raise ValueError(f"The directory '{location}' does not exist.")
-                # logger.warning(f"The directory '{location}' does not exist.")
-            if not os.path.isdir(location):
-                raise ValueError(f"'{location}' is not a directory.")
-                # logger.warning(f"'{location}' is not a directory.")
-            if not os.access(location, os.R_OK):
-                raise ValueError(f"'{location}' is not readable.")
-                # logger.warning(f"'{location}' is not readable.")
-        return value
+    # Ensure default for `context` is applied during model initialization
+    @field_validator("context", mode="before")
+    def set_default_context(cls, values):
+        if values["context"] not in ["server", "CLI"]:
+            raise ValueError("context must be either 'server' or 'CLI'")
+
+
+    # Post-initialization validator for `parent_runs_location`
+    # @field_validator("parent_runs_location", mode="after")
+    # def validate_run_location(cls, value, values):
+    #     context = values.get("context", "CLI")
+    #     if context != "CLI":
+    #         # Skip validation if context is not CLI
+    #         return value
+
+    #     # Validate paths on CLI
+    #     if not isinstance(value, list):
+    #         raise ValueError("parent_runs_location must be a list")
+    #     for location in value:
+    #         if not os.path.exists(location):
+    #             raise ValueError(f"The directory '{location}' does not exist.")
+    #         if not os.path.isdir(location):
+    #             raise ValueError(f"'{location}' is not a directory.")
+    #         if not os.access(location, os.R_OK):
+    #             raise ValueError(f"'{location}' is not readable.")
+    #     return value
 
     @field_validator("runs_regex", mode="before")
     def validate_regex(cls, v):
@@ -48,7 +60,6 @@ class WorkflowConfig(MongoModel):
 
 
 class WorkflowRun(MongoModel):
-    # id: Optional[PyObjectId] = None
     id: PyObjectId = Field(default_factory=None, alias="_id")
     workflow_id: PyObjectId
     run_tag: str
@@ -58,7 +69,6 @@ class WorkflowRun(MongoModel):
     execution_time: datetime
     execution_profile: Optional[Dict]
     registration_time: datetime = datetime.now()
-
 
     @model_validator(mode="before")
     def set_default_id(cls, values):
@@ -137,48 +147,33 @@ class WorkflowSystem(BaseModel):
 
 
 class Workflow(MongoModel):
-    # id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
-    # id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
-    id: PyObjectId = Field(default=None, alias='_id')
+    # id: PyObjectId = Field(default=None, alias="_id")
     name: str
     engine: str
     workflow_tag: str
-    # workflow_engine: WorkflowSystem
     description: str
     repository_url: Optional[str]
-    data_collections: List[DataCollection]
     # data_collections: List[str]
+    data_collections: List[DataCollection]
     runs: Optional[Dict[str, WorkflowRun]] = dict()
     config: WorkflowConfig
     registration_time: datetime = datetime.now()
-    # data_collection_ids: Optional[List[str]] = []
-
-
-    # class Config:
-    #     arbitrary_types_allowed = True
-    #     json_encoders = {
-    #         ObjectId: lambda oid: str(oid),  # or `str` for simplicity
-    #     }
-
-
-
 
     @model_validator(mode="before")
     def compute_and_assign_hash(cls, values):
         # Copy the values to avoid mutating the input directly
         values_copy = values.copy()
         # Remove the hash field to avoid including it in the hash computation
-        values_copy.pop('hash', None)
+        values_copy.pop("hash", None)
         # Compute the hash of the values
         computed_hash = HashModel.compute_hash(values_copy)
         # Assign the computed hash directly as a string
-        values['hash'] = computed_hash
+        values["hash"] = computed_hash
         return values
-
 
     def __eq__(self, other):
         if isinstance(other, Workflow):
-            return all(getattr(self, field) == getattr(other, field) for field in self.__fields__.keys() if field not in ["id", "registration_time"])
+            return all(getattr(self, field) == getattr(other, field) for field in self.model_fields.keys() if field not in ["id", "registration_time"])
         return NotImplemented
 
     @field_validator("name", mode="before")
@@ -214,8 +209,6 @@ class Workflow(MongoModel):
         if engine and name:
             values["workflow_tag"] = f"{engine}/{name}"
         return values
-
-
 
     @field_validator("description", mode="before")
     def sanitize_description(cls, value):

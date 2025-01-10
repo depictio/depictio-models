@@ -9,22 +9,19 @@ from depictio_models.models.base import MongoModel
 
 
 class Project(MongoModel):
-    # id: PyObjectId = Field(default_factory=None, alias="_id")
     name: str
     description: Optional[str] = None
-    data_management_platform_project_url: Optional[str]
-    # workflows: List[str]
+    data_management_platform_project_url: Optional[str] = None
     workflows: List[Workflow]
     depictio_version: str
     yaml_config_path: str
     permissions: Permission
-    hash: Optional[str] = None
 
     @field_validator("depictio_version")
     @classmethod
     def validate_version(cls, v):
         # Using a simple regex pattern to validate semantic versioning
-        pattern = r"^\d+\.\d+\.\d+$"
+        pattern = r"^v\d+\.\d+\.\d+$"
         if not re.match(pattern, v):
             raise ValueError("Invalid version number, must be in format X.Y.Z where X, Y, Z are integers")
         return v
@@ -35,6 +32,14 @@ class Project(MongoModel):
         # Check if looks like a valid path but do not check if it exists
         if not os.path.isabs(v):
             raise ValueError("Path must be absolute")
+        return v
+
+    @field_validator("data_management_platform_project_url")
+    @classmethod
+    def validate_data_management_platform_project_url(cls, v):
+        # Check if looks like a valid URL
+        if not re.match(r"https?://", v):
+            raise ValueError("Invalid URL")
         return v
 
     # @model_validator(mode="before")

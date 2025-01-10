@@ -86,7 +86,7 @@ class DataCollectionConfig(MongoModel):
 
 
 class DataCollection(MongoModel):
-    id: PyObjectId = Field(default_factory=None, alias="_id")
+    # id: PyObjectId = Field(default_factory=None, alias="_id")
     data_collection_tag: str
     description: str = None
     config: DataCollectionConfig
