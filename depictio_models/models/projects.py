@@ -1,16 +1,19 @@
 import os
 import re
+import bleach
+import html
 from typing import List, Optional
 from pydantic import field_validator
 
 from depictio_models.models.users import Permission
 from depictio_models.models.workflows import Workflow
-from depictio_models.models.base import MongoModel
+from depictio_models.models.base import Description, MongoModel
 
 
 class Project(MongoModel):
     name: str
-    description: Optional[str] = None
+    description: Optional[str] = None  # Store as a plain string in YAML
+    # description: Optional[str] = None
     data_management_platform_project_url: Optional[str] = None
     workflows: List[Workflow]
     depictio_version: str
@@ -42,6 +45,32 @@ class Project(MongoModel):
             raise ValueError("Invalid URL")
         return v
 
+    @field_validator("description", mode="before")
+    def parse_description(cls, value):
+        """
+        Automatically convert a string into a Description object during validation.
+        """
+        if isinstance(value, str):
+            return Description(description=value)
+        return value
+
+    # @field_validator("description")
+    # def sanitize_description(cls, value):
+    #     """
+    #     Sanitizes the input to ensure it is plain text and neutralizes any code.
+    #     Converts special characters to their HTML-safe equivalents to neutralize code execution.
+    #     """
+    #     # Convert special characters to HTML-safe equivalents
+    #     neutralized = html.escape(value)
+
+    #     # Sanitize the input to strip all HTML tags or attributes
+    #     sanitized = bleach.clean(neutralized, tags=[], attributes={}, strip=True)
+
+    #     if len(sanitized) > 1000:
+    #         raise ValueError("Description must be less than 1000 characters.")
+
+    #     return sanitized
+    
     # @model_validator(mode="before")
     # @classmethod
     # def ensure_id(cls, values: dict) -> dict:

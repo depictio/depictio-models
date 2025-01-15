@@ -2,16 +2,18 @@ from typing import Dict, List, Optional, Any
 import re
 from pydantic import (
     BaseModel,
-    root_validator,
-    validator,
+    field_validator,
 )
 
 class DCJBrowse2Config(BaseModel):
     index_extension: Optional[str] = None
     jbrowse_template_location: Optional[str] = None
 
-
-    @validator("format", check_fields=False)
+    class Config:
+        extra = "forbid"  # Reject unexpected fields
+        
+    # TODO : start over for this one
+    @field_validator("format", check_fields=False)
     def validate_format(cls, v, values, **kwargs):
         allowed_values_for_table = ["csv", "tsv", "parquet", "feather", "xls", "xlsx"]
         allowed_values_for_genome_browser = [

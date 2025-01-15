@@ -10,7 +10,7 @@ from depictio_models.models.base import MongoModel, PyObjectId
 
 class DashboardData(MongoModel):
     dashboard_id: str
-    id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
+    # id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
     version: int = 1
     tmp_children_data: Optional[List] = []
     stored_layout_data: Dict = {}

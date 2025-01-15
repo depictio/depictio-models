@@ -18,7 +18,6 @@ from depictio_models.logging import logger
 
 
 class Token(MongoModel):
-    id: PyObjectId = Field(default_factory=None, alias="_id")
     access_token: str
     token_lifetime: str = "short-lived"
     expire_datetime: str
@@ -27,38 +26,23 @@ class Token(MongoModel):
     # scope: Optional[str] = None
     # user_id: PyObjectId
 
-    @model_validator(mode="before")
-    def set_default_id(cls, values):
-        if values is None or "_id" not in values or values["_id"] is None:
-            return values  # Ensure we don't proceed if values is None
-        values["_id"] = PyObjectId()
-        return values
-    
-    class Config:
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: lambda v: str(v)}
-
 
 ###################
 # User management #
 ###################
 
+class Group(MongoModel):
+    name: str
+
 
 class UserBase(MongoModel):
-    id: PyObjectId = Field(default_factory=None, alias="_id")
     email: EmailStr
     is_admin: bool = False
-    groups: List[str] = Field(default_factory=list)
+    groups: List[Group]
 
-    @model_validator(mode="before")
-    def set_default_id(cls, values):
-        if values is None or "_id" not in values or values["_id"] is None:
-            return values  # Ensure we don't proceed if values is None
-        values["_id"] = PyObjectId()
-        return values
+
 
 class User(UserBase):
-    # id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
     # user_id: Optional[PyObjectId] = None
     # username: str
     # email: EmailStr
@@ -72,12 +56,6 @@ class User(UserBase):
     # groups: Optional[List[PyObjectId]] = Field(default_factory=list)
     password: str
 
-    @model_validator(mode="before")
-    def set_default_id(cls, values):
-        if values is None or "_id" not in values or values["_id"] is None:
-            return values  # Ensure we don't proceed if values is None
-        values["_id"] = PyObjectId()
-        return values
 
     @field_validator("password", mode="before")
     def hash_password(cls, v):
@@ -108,39 +86,12 @@ class User(UserBase):
         return values
 
 
-class Group(BaseModel):
-    user_id: PyObjectId = Field(default_factory=None, alias="_id")
-    name: str
-    members: Set[User]  # Set of User objects instead of ObjectId
-
-    @field_validator("members", mode="before")
-    def ensure_unique_users(cls, user):
-        if not isinstance(user, User):
-            raise ValueError(f"Each member must be an instance of User, got {type(user)}")
-        return user
-
-    # This function ensures there are no duplicate users in the group
-    @model_validator(mode="before")
-    def ensure_unique_member_ids(cls, values):
-        members = values.get("members", [])
-        unique_members = {member.id: member for member in members}.values()
-        return {"members": set(unique_members)} 
-
-    # This function validates that each user_id in the members is unique
-    @model_validator(mode="before")
-    def check_user_ids_are_unique(cls, values):
-        seen = set()
-        members = values.get("members", [])
-        for member in members:
-            if member.id in seen:
-                raise ValueError("Duplicate user_id found in group members.")
-            seen.add(member.id)
-        return values
 
 class Permission(BaseModel):
     owners: List[UserBase] = []  # Default to an empty list
     editors: List[UserBase] = []  # Default to an empty list
     viewers: List[Union[UserBase, str]] = []  # Allow string wildcard "*" in viewers
+
 
     def dict(self, **kwargs):
         # Generate list of owner and viewer dictionaries
@@ -156,9 +107,15 @@ class Permission(BaseModel):
             raise ValueError(f"Expected a list, got {type(v)}")
         
         result = []
+        logger.debug(f"Converting list to UserBase: {v}")   
         for item in v:
             logger.debug(f"Converting {item} to UserBase")
             if isinstance(item, dict):
+
+                # keep only id, email, is_admin, groups
+                item = {key: value for key, value in item.items() if key in ["id", "email", "is_admin", "groups"]}
+                logger.debug(f"Filtered dictionary: {item}")
+
                 result.append(UserBase(**item))  # Convert dictionary to UserBase
             elif isinstance(item, str) and item == "*":
                 result.append(item)  # Allow wildcard "*" for viewers
@@ -166,6 +123,7 @@ class Permission(BaseModel):
                 result.append(item)  # Already a UserBase instance
             else:
                 raise ValueError("Owners, editors, and viewers must be UserBase instances or valid types")
+        logger.debug(f"Converted list to UserBase: {result}")
         return result
 
     # Step 2: Validate permissions after field-level validation

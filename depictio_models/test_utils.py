@@ -1,7 +1,7 @@
 import os
 import pytest
 from pydantic import BaseModel, ValidationError
-from depictio_models.utils import validate_config, substitute_env_vars
+from depictio_models.utils import validate_model_config, substitute_env_vars
 
 # Define a Pydantic model for testing purposes
 class TestModel(BaseModel):
@@ -9,9 +9,9 @@ class TestModel(BaseModel):
     key2: int
 
 # Test case for validating a correct configuration
-def test_validate_config_valid():
+def test_validate_model_config_valid():
     """
-    Test the validate_config function with a valid configuration.
+    Test the validate_model_config function with a valid configuration.
 
     Asserts:
         The key1 and key2 in the result configuration match the input values.
@@ -20,14 +20,14 @@ def test_validate_config_valid():
         "key1": "value1",
         "key2": 123
     }
-    result = validate_config(config, TestModel)
+    result = validate_model_config(config, TestModel)
     assert result.key1 == "value1"
     assert result.key2 == 123
 
 # Test case for validating a configuration with an invalid type
-def test_validate_config_invalid_type():
+def test_validate_model_config_invalid_type():
     """
-    Test the validate_config function with an invalid type for key2.
+    Test the validate_model_config function with an invalid type for key2.
 
     Asserts:
         A ValueError is raised due to the invalid type.
@@ -37,12 +37,12 @@ def test_validate_config_invalid_type():
         "key2": "not_an_int"
     }
     with pytest.raises(ValueError):
-        validate_config(config, TestModel)
+        validate_model_config(config, TestModel)
 
 # Test case for validating a configuration with a missing key
-def test_validate_config_missing_key():
+def test_validate_model_config_missing_key():
     """
-    Test the validate_config function with a missing key in the configuration.
+    Test the validate_model_config function with a missing key in the configuration.
 
     Asserts:
         A ValueError is raised due to the missing key.
@@ -51,15 +51,15 @@ def test_validate_config_missing_key():
         "key1": "value1"
     }
     with pytest.raises(ValueError):
-        validate_config(config, TestModel)
+        validate_model_config(config, TestModel)
 
 # Test case for validating a configuration with environment variables
-def test_validate_config_with_env_vars(monkeypatch):
+def test_validate_model_config_with_env_vars(monkeypatch):
     """
-    Test the validate_config function with environment variables.
+    Test the validate_model_config function with environment variables.
 
     This test sets an environment variable using monkeypatch and verifies that
-    the validate_config function correctly substitutes the environment variable
+    the validate_model_config function correctly substitutes the environment variable
     value in the configuration.
 
     Args:
@@ -75,18 +75,18 @@ def test_validate_config_with_env_vars(monkeypatch):
         "key1": "${TEST_ENV_VAR}",
         "key2": 123
     }
-    result = validate_config(config, TestModel)
+    result = validate_model_config(config, TestModel)
     assert result.key1 == "env_value"
     assert result.key2 == 123
 
 # Test case for validating a configuration with an invalid config type
-def test_validate_config_invalid_config_type():
+def test_validate_model_config_invalid_config_type():
     """
-    Test the validate_config function with an invalid configuration type.
+    Test the validate_model_config function with an invalid configuration type.
 
     Asserts:
         A ValueError is raised due to the invalid configuration type.
     """
     config = ["not", "a", "dict"]
     with pytest.raises(ValueError):
-        validate_config(config, TestModel)
+        validate_model_config(config, TestModel)

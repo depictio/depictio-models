@@ -30,7 +30,7 @@ def substitute_env_vars(config: Dict) -> Dict:
     else:
         return config
 
-def validate_config(config: Dict, pydantic_model: Type[BaseModel]) -> BaseModel:
+def validate_model_config(config: Dict, pydantic_model: Type[BaseModel]) -> BaseModel:
     """
     Load and validate the YAML configuration
     """

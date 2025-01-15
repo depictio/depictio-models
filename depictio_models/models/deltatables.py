@@ -15,6 +15,9 @@ class DeltaTableColumn(BaseModel):
     description: Optional[str] = None  # Optional description
     specs: Optional[Dict] = None
 
+    class Config:
+        extra = "forbid"  # Reject unexpected fields
+
     @field_validator("type")
     def validate_column_type(cls, v):
         allowed_values = [
@@ -60,6 +63,9 @@ class Aggregation(MongoModel):
 
 
 class FilterCondition(BaseModel):
+    class Config:
+        extra = "forbid"  # Reject unexpected fields
+
     above: Optional[Union[int, float, str]] = None
     equal: Optional[Union[int, float, str]] = None
     under: Optional[Union[int, float, str]] = None
@@ -74,26 +80,20 @@ class DeltaTableQuery(MongoModel):
 
 
 class DeltaTableAggregated(MongoModel):
-    id: Optional[PyObjectId] = None
     # id: Optional[PyObjectId] = None
     data_collection_id: PyObjectId
     delta_table_location: str
     aggregation: List[Aggregation] = []
 
-    class Config:
-        arbitrary_types_allowed = True
-        json_encoders = {
-            ObjectId: lambda oid: str(oid),  # or `str` for simplicity
-        }
-
+    # class Config:
+    #     arbitrary_types_allowed = True
+    #     json_encoders = {
+    #         ObjectId: lambda oid: str(oid),  # or `str` for simplicity
+    #     }
 
     def __eq__(self, other):
         if isinstance(other, DeltaTableAggregated):
-            return all(
-                getattr(self, field) == getattr(other, field)
-                for field in self.__fields__.keys()
-                if field not in ['id']
-            )
+            return all(getattr(self, field) == getattr(other, field) for field in self.__fields__.keys() if field not in ["id"])
         return NotImplemented
 
     # @field_validator("aggregation")

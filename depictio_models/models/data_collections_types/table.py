@@ -1,7 +1,7 @@
 from typing import Dict, List, Optional, Any
 from pydantic import (
     BaseModel,
-    validator,
+    field_validator,
 )
 
 
@@ -14,7 +14,10 @@ class DCTableConfig(BaseModel):
     columns_description: Optional[Dict[str, str]] = {}
     # TODO: validate than the columns are in the dataframe
 
-    @validator("format")
+    class Config:
+        extra = "forbid"  # Reject unexpected fields
+
+    @field_validator("format")
     def validate_format(cls, v):
         allowed_values = ["csv", "tsv", "parquet", "feather", "xls", "xlsx"]
         if v.lower() not in allowed_values:
@@ -22,7 +25,7 @@ class DCTableConfig(BaseModel):
         return v
 
     # TODO : check that the columns to keep are in the dataframe
-    @validator("keep_columns")
+    @field_validator("keep_columns")
     def validate_keep_fields(cls, v):
         if v is not None:
             if not isinstance(v, list):
@@ -30,7 +33,7 @@ class DCTableConfig(BaseModel):
         return v
 
     # TODO: check polars different arguments
-    @validator("polars_kwargs")
+    @field_validator("polars_kwargs")
     def validate_pandas_kwargs(cls, v):
         if v is not None:
             if not isinstance(v, dict):

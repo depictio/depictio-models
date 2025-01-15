@@ -1,5 +1,7 @@
 from datetime import datetime
+import html
 import os
+from pathlib import Path
 from typing import Dict, List, Optional
 import bleach
 import re
@@ -11,9 +13,14 @@ from pydantic import (
 )
 from depictio_models.models.files import File
 from depictio_models.models.users import Permission
-from depictio_models.models.base import DirectoryPath, HashModel, MongoModel, PyObjectId
+from depictio_models.models.base import Description, DirectoryPath, HashModel, MongoModel, PyObjectId
 from depictio_models.models.data_collections import DataCollection
 from depictio_models.logging import logger
+
+
+DEPICTIO_CONTEXT = os.getenv("DEPICTIO_CONTEXT")
+logger.info(f"DEPICTIO_CONTEXT: {DEPICTIO_CONTEXT}")
+
 
 class WorkflowConfig(MongoModel):
     # parent_runs_location: List[DirectoryPath]
@@ -21,34 +28,31 @@ class WorkflowConfig(MongoModel):
     parent_runs_location: List[str]
     workflow_version: Optional[str] = None
     runs_regex: str
-    context: str = Field(default="CLI")
 
-    # Ensure default for `context` is applied during model initialization
-    @field_validator("context", mode="before")
-    def set_default_context(cls, values):
-        if values["context"] not in ["server", "CLI"]:
-            raise ValueError("context must be either 'server' or 'CLI'")
+    @field_validator("parent_runs_location", mode="after")
+    def validate_and_recast_parent_runs_location(cls, value):
+        if DEPICTIO_CONTEXT == "CLI":
+            # Recast to List[DirectoryPath] and validate
 
+            env_var_pattern = re.compile(r"\{([A-Z0-9_]+)\}")
 
-    # Post-initialization validator for `parent_runs_location`
-    # @field_validator("parent_runs_location", mode="after")
-    # def validate_run_location(cls, value, values):
-    #     context = values.get("context", "CLI")
-    #     if context != "CLI":
-    #         # Skip validation if context is not CLI
-    #         return value
+            expanded_paths = []
+            for location in value:
+                matches = env_var_pattern.findall(location)
+                for match in matches:
+                    env_value = os.environ.get(match)
+                    logger.debug(f"Original path: {location}")
+                    logger.debug(f"Expanded path: {location.replace(f'{{{match}}}', env_value)}")
 
-    #     # Validate paths on CLI
-    #     if not isinstance(value, list):
-    #         raise ValueError("parent_runs_location must be a list")
-    #     for location in value:
-    #         if not os.path.exists(location):
-    #             raise ValueError(f"The directory '{location}' does not exist.")
-    #         if not os.path.isdir(location):
-    #             raise ValueError(f"'{location}' is not a directory.")
-    #         if not os.access(location, os.R_OK):
-    #             raise ValueError(f"'{location}' is not readable.")
-    #     return value
+                    if not env_value:
+                        raise ValueError(f"Environment variable '{match}' is not set for path '{location}'.")
+                    # Replace the placeholder with the actual value
+                    location = location.replace(f"{{{match}}}", env_value)
+                expanded_paths.append(location)
+
+            # Validate the expanded paths if in CLI context
+            return [DirectoryPath(path=Path(location)).path for location in expanded_paths]
+        return expanded_paths
 
     @field_validator("runs_regex", mode="before")
     def validate_regex(cls, v):
@@ -60,7 +64,6 @@ class WorkflowConfig(MongoModel):
 
 
 class WorkflowRun(MongoModel):
-    id: PyObjectId = Field(default_factory=None, alias="_id")
     workflow_id: PyObjectId
     run_tag: str
     files: List[File] = []
@@ -112,12 +115,14 @@ class WorkflowRun(MongoModel):
             return value.strftime("%Y-%m-%d %H:%M:%S")
 
 
-class WorkflowSystem(BaseModel):
-    workflow_language: str
-    engine_version: Optional[str]
-    workflow_engine: Optional[str]
+class WorkflowEngine(BaseModel):
+    name: str
+    version: Optional[str] = None
 
-    @field_validator("workflow_engine", mode="before")
+    class Config:
+        extra = "forbid"  # Reject unexpected fields
+
+    @field_validator("name", mode="before")
     def validate_workflow_engine_value(cls, value):
         allowed_values = [
             "snakemake",
@@ -131,45 +136,74 @@ class WorkflowSystem(BaseModel):
             raise ValueError(f"workflow_engine must be one of {allowed_values}")
         return value
 
-    @field_validator("workflow_language", mode="before")
-    def validate_workflow_language_value(cls, value):
-        allowed_values = [
-            "snakemake",
-            "nextflow",
-            "CWL",
-            "galaxy",
-            "smk",
-            "nf",
-        ]
-        if value not in allowed_values:
-            raise ValueError(f"workflow_language must be one of {allowed_values}")
+class WorkflowCatalog(BaseModel):
+    name: Optional[str]
+    url: Optional[str]
+
+    class Config:
+        extra = "forbid"  # Reject unexpected fields
+
+    @field_validator("url", mode="before")
+    def validate_workflow_catalog_url(cls, value):
+        if not re.match(r"^(https?|git)://", value):
+            raise ValueError("Invalid URL")
         return value
+    
+    @field_validator("name", mode="before")
+    def validate_workflow_catalog_name(cls, value):
+        if value not in ["workflowhub", "nf-core", "smk-wf-catalog"]:
+            raise ValueError("Invalid workflow catalog name")
 
 
 class Workflow(MongoModel):
-    # id: PyObjectId = Field(default=None, alias="_id")
     name: str
-    engine: str
-    workflow_tag: str
-    description: str
+    engine: WorkflowEngine
+    catalog: Optional[WorkflowCatalog] = None
+    workflow_tag: Optional[str] = None
+    description: Optional[Description] = Field(alias="description")  # Use alias for YAML input
     repository_url: Optional[str]
-    # data_collections: List[str]
     data_collections: List[DataCollection]
     runs: Optional[Dict[str, WorkflowRun]] = dict()
     config: WorkflowConfig
     registration_time: datetime = datetime.now()
 
+    @field_validator("description", mode="before")
+    def parse_description(cls, value):
+        """
+        Automatically convert a string into a Description object during validation.
+        """
+        if isinstance(value, str):
+            return Description(description=value)
+        if isinstance(value, Description):
+            return value
+        raise ValueError("Invalid type for description, expected str or Description.")
+
+
     @model_validator(mode="before")
-    def compute_and_assign_hash(cls, values):
-        # Copy the values to avoid mutating the input directly
-        values_copy = values.copy()
-        # Remove the hash field to avoid including it in the hash computation
-        values_copy.pop("hash", None)
-        # Compute the hash of the values
-        computed_hash = HashModel.compute_hash(values_copy)
-        # Assign the computed hash directly as a string
-        values["hash"] = computed_hash
+    @classmethod
+    def generate_workflow_tag(cls, values):
+        engine = values.get("engine")
+        name = values.get("name")
+        catalog = values.get("catalog")
+        logger.debug(f"Engine: {engine}, Name: {name}, Catalog: {catalog}")
+        values["workflow_tag"] = f"{engine.get('name')}/{name}"
+        if catalog:
+            catalog_name = catalog.get("name")
+            if catalog_name == "nf-core":
+                values["workflow_tag"] = f"{catalog_name}/{name}"
         return values
+
+    # @model_validator(mode="before")
+    # def compute_and_assign_hash(cls, values):
+    #     # Copy the values to avoid mutating the input directly
+    #     values_copy = values.copy()
+    #     # Remove the hash field to avoid including it in the hash computation
+    #     values_copy.pop("hash", None)
+    #     # Compute the hash of the values
+    #     computed_hash = HashModel.compute_hash(values_copy)
+    #     # Assign the computed hash directly as a string
+    #     values["hash"] = computed_hash
+    #     return values
 
     def __eq__(self, other):
         if isinstance(other, Workflow):
@@ -210,13 +244,22 @@ class Workflow(MongoModel):
             values["workflow_tag"] = f"{engine}/{name}"
         return values
 
-    @field_validator("description", mode="before")
-    def sanitize_description(cls, value):
-        # Strip any HTML tags and attributes
-        sanitized = bleach.clean(value, tags=[], attributes={}, strip=True)
-        # Ensure it's not overly long
-        max_length = 500  # Set as per your needs
-        return sanitized[:max_length]
+    # @field_validator("description")
+    # def sanitize_description(cls, value):
+    #     """
+    #     Sanitizes the input to ensure it is plain text and neutralizes any code.
+    #     Converts special characters to their HTML-safe equivalents to neutralize code execution.
+    #     """
+    #     # Convert special characters to HTML-safe equivalents
+    #     neutralized = html.escape(value)
+
+    #     # Sanitize the input to strip all HTML tags or attributes
+    #     sanitized = bleach.clean(neutralized, tags=[], attributes={}, strip=True)
+
+    #     if len(sanitized) > 1000:
+    #         raise ValueError("Description must be less than 1000 characters.")
+
+    #     return sanitized
 
     @field_validator("data_collections", mode="before")
     def validate_data_collections(cls, value):

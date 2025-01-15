@@ -17,7 +17,7 @@ class WildcardRegex(WildcardRegexBase):
 
 
 class File(MongoModel):
-    id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
+    # id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
     # id: Optional[PyObjectId] = None
     file_location: FilePath
     S3_location: Optional[str] = None
