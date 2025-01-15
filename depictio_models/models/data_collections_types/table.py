@@ -9,7 +9,7 @@ from pydantic import (
 
 class DCTableConfig(BaseModel):
     format: str
-    polars_kwargs: Optional[Dict[str, Any]] = {}
+    polars_kwargs: Dict[str, Any] = {}
     keep_columns: Optional[List[str]] = []
     columns_description: Optional[Dict[str, str]] = {}
     # TODO: validate than the columns are in the dataframe
