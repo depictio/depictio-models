@@ -16,18 +16,18 @@ class Project(MongoModel):
     # description: Optional[str] = None
     data_management_platform_project_url: Optional[str] = None
     workflows: List[Workflow]
-    depictio_version: str
+    # depictio_version: str
     yaml_config_path: str
     permissions: Permission
 
-    @field_validator("depictio_version")
-    @classmethod
-    def validate_version(cls, v):
-        # Using a simple regex pattern to validate semantic versioning
-        pattern = r"^v\d+\.\d+\.\d+$"
-        if not re.match(pattern, v):
-            raise ValueError("Invalid version number, must be in format X.Y.Z where X, Y, Z are integers")
-        return v
+    # @field_validator("depictio_version")
+    # @classmethod
+    # def validate_version(cls, v):
+    #     # Using a simple regex pattern to validate semantic versioning
+    #     pattern = r"^v\d+\.\d+\.\d+$"
+    #     if not re.match(pattern, v):
+    #         raise ValueError("Invalid version number, must be in format X.Y.Z where X, Y, Z are integers")
+    #     return v
     
     @field_validator("yaml_config_path")
     @classmethod
