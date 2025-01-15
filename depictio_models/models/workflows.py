@@ -131,6 +131,20 @@ class WorkflowEngine(BaseModel):
             "cwltool",
             "arvados",
             "streamflow",
+            "galaxy",
+            "airflow",
+            "dagster",
+            "python",
+            "shell",
+            "r",
+            "julia",
+            "matlab",
+            "perl",
+            "java",
+            "c",
+            "c++",
+            "go",
+            "rust",            
         ]
         if value not in allowed_values:
             raise ValueError(f"workflow_engine must be one of {allowed_values}")
