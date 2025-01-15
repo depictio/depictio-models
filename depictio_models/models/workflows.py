@@ -158,6 +158,7 @@ class WorkflowCatalog(BaseModel):
 class Workflow(MongoModel):
     name: str
     engine: WorkflowEngine
+    version: Optional[str] = None
     catalog: Optional[WorkflowCatalog] = None
     workflow_tag: Optional[str] = None
     description: Optional[Description] = Field(alias="description")  # Use alias for YAML input
@@ -166,6 +167,14 @@ class Workflow(MongoModel):
     runs: Optional[Dict[str, WorkflowRun]] = dict()
     config: WorkflowConfig
     registration_time: datetime = datetime.now()
+
+    @field_validator("version", mode="before")
+    def validate_version(cls, value):
+        if not value:
+            raise ValueError("version is required")
+        if not isinstance(value, str):
+            raise ValueError("version must be a string")
+        return value
 
     @field_validator("description", mode="before")
     def parse_description(cls, value):
