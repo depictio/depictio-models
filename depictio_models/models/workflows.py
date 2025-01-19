@@ -1,9 +1,7 @@
 from datetime import datetime
-import html
 import os
 from pathlib import Path
 from typing import Dict, List, Optional
-import bleach
 import re
 from pydantic import (
     BaseModel,
@@ -12,8 +10,7 @@ from pydantic import (
     model_validator,
 )
 from depictio_models.models.files import File
-from depictio_models.models.users import Permission
-from depictio_models.models.base import Description, DirectoryPath, HashModel, MongoModel, PyObjectId
+from depictio_models.models.base import Description, DirectoryPath, MongoModel, PyObjectId
 from depictio_models.models.data_collections import DataCollection
 from depictio_models.logging import logger
 

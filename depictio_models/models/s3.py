@@ -1,9 +1,6 @@
-from datetime import datetime
 import re
-from typing import List, Optional
 from pydantic import BaseModel, field_validator
 
-from depictio_models.models.base import PyObjectId
 
 
 class MinIOS3Config(BaseModel):
