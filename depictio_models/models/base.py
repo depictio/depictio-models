@@ -101,6 +101,28 @@ class MongoModel(BaseModel):
             PosixPath: lambda path: str(path),
         }
 
+    @model_validator(mode="before")
+    @classmethod
+    def ensure_id(cls, values: dict) -> dict:
+        """
+        Ensures the `_id` field uses the provided value or generates a new ObjectId.
+        """
+        # If values is not a dict, skip processing and return as-is
+        if not isinstance(values, dict):
+            return values
+
+        logger.info(f"Ensuring ID: {values}")
+        if "_id" in values and values["_id"] is not None:
+            # If `_id` is provided, validate and retain it
+            values["id"] = PyObjectId.validate(values["_id"])
+        elif "id" in values and values["id"] is not None:
+            # If `id` is provided, validate and retain it
+            values["id"] = PyObjectId.validate(values["id"])
+        else:
+            # Generate a new ObjectId if no valid ID is provided
+            values["id"] = PyObjectId()
+        return values
+
     @classmethod
     def from_mongo(cls, data: dict):
         """We must convert _id into "id"."""
@@ -142,22 +164,7 @@ class MongoModel(BaseModel):
 
         return parsed
 
-    @model_validator(mode="before")
-    @classmethod
-    def ensure_id(cls, values: dict) -> dict:
-        """
-        Ensures the `_id` field uses the provided value or generates a new ObjectId.
-        """
-        if "_id" in values and values["_id"] is not None:
-            # If `_id` is provided, validate and retain it
-            values["id"] = PyObjectId.validate(values["_id"])
-        elif "id" in values and values["id"] is not None:
-            # If `id` is provided, validate and retain it
-            values["id"] = PyObjectId.validate(values["id"])
-        else:
-            # Generate a new ObjectId if no valid ID is provided
-            values["id"] = PyObjectId()
-        return values
+
 
 
 class DirectoryPath(BaseModel):
