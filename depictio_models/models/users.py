@@ -42,18 +42,16 @@ class UserBase(MongoModel):
 
 
 
+
 class User(UserBase):
     # user_id: Optional[PyObjectId] = None
     # username: str
-    # email: EmailStr
     tokens: List[Token] = Field(default_factory=list)
     current_access_token: Optional[str] = None
     is_active: bool = True
-    # is_admin: bool = False
     is_verified: bool = False
     last_login: Optional[str] = None
     registration_date: Optional[str] = None
-    # groups: Optional[List[PyObjectId]] = Field(default_factory=list)
     password: str
 
 
@@ -76,14 +74,14 @@ class User(UserBase):
             return all(getattr(self, field) == getattr(other, field) for field in self.model_fields.keys() if field not in ["user_id", "registration_time"])
         return False
 
-    @model_validator(mode="before")
-    def add_admin_to_group(cls, values):
-        if values.get("is_admin"):
-            group_ids = values.get("groups", [])
-            if "admin" not in group_ids:
-                group_ids.append("admin")
-            values["groups"] = group_ids
-        return values
+    # @model_validator(mode="before")
+    # def add_admin_to_group(cls, values):
+    #     if values.get("is_admin"):
+    #         group_ids = values.get("groups", [])
+    #         if "admin" not in group_ids:
+    #             group_ids.append("admin")
+    #         values["groups"] = group_ids
+    #     return values
 
 
 
