@@ -1,13 +1,11 @@
 import logging
 from colorlog import ColoredFormatter
 
-# Create a logger
-logger = logging.getLogger("depictio-models")
-logger.setLevel(logging.DEBUG)
+
 
 # Create a colored formatter
 formatter = ColoredFormatter(
-    "%(log_color)s%(asctime)s%(reset)s | %(cyan)s%(name)s%(reset)s | %(green)s%(levelname)s%(reset)s | %(yellow)s%(funcName)s:%(lineno)d%(reset)s | %(message)s",
+    "%(log_color)s%(asctime)s%(reset)s - %(name)s - %(log_color)s%(levelname)s%(reset)s - %(filename)s - %(funcName)s - line %(lineno)d - %(message)s",
     datefmt=None,
     reset=True,
     log_colors={
@@ -25,5 +23,9 @@ formatter = ColoredFormatter(
 handler = logging.StreamHandler()
 handler.setFormatter(formatter)
 
+# Create a logger
+logging.basicConfig(level=logging.DEBUG, handlers=[handler])
+
 # Add the handler to the logger
-logger.addHandler(handler)
+logger = logging.getLogger("depictio-models")
+
