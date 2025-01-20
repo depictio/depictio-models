@@ -1,18 +1,38 @@
-
 import hashlib
 import os
-from typing import Dict, List, Type
-
-from pydantic import BaseModel, ValidationError
 import yaml
+from typing import Dict, List, Type
+from pydantic import BaseModel, ValidationError
 
 from depictio_models.logging import logger
 from depictio_models.models.base import PyObjectId
 
+
+def get_depictio_context():
+    return os.getenv("DEPICTIO_CONTEXT")
+
+def get_config(filename: str):
+    """
+    Get the config file.
+    """
+    logger.debug("Loading utils.py")
+
+    if not filename.endswith(".yaml"):
+        raise ValueError("Invalid config file. Must be a YAML file.")
+    if not os.path.exists(filename):
+        raise ValueError(f"The file '{filename}' does not exist.")
+    if not os.path.isfile(filename):
+        raise ValueError(f"'{filename}' is not a file.")
+    else:
+        with open(filename, "r") as f:
+            yaml_data = yaml.safe_load(f)
+        return yaml_data
+
+
 def substitute_env_vars(config: Dict) -> Dict:
     """
     Recursively substitute environment variables in the configuration dictionary.
-    
+
     Args:
         config (Dict): Configuration dictionary with potential environment variable placeholders.
 
@@ -30,6 +50,7 @@ def substitute_env_vars(config: Dict) -> Dict:
     else:
         return config
 
+
 def validate_model_config(config: Dict, pydantic_model: Type[BaseModel]) -> BaseModel:
     """
     Load and validate the YAML configuration
@@ -40,12 +61,9 @@ def validate_model_config(config: Dict, pydantic_model: Type[BaseModel]) -> Base
         # List environment variables
         logger.info(f"Env args: {os.environ}")
 
-
-
         # Substitute environment variables within the config
         substituted_config = substitute_env_vars(config)
         logger.info(f"Substituted Config: {substituted_config}")
-
 
         # Load the config into a Pydantic model
         data = pydantic_model(**substituted_config)
