@@ -5,11 +5,17 @@ from typing import Dict, List, Type
 from pydantic import BaseModel, ValidationError
 
 from depictio_models.logging import logger
-from depictio_models.models.base import PyObjectId
+from depictio_models.models.base import PyObjectId, convert_objectid_to_str
 
 
 def get_depictio_context():
     return os.getenv("DEPICTIO_CONTEXT")
+
+def convert_model_to_dict(model: BaseModel) -> Dict:
+    """
+    Convert a Pydantic model to a dictionary.
+    """
+    return convert_objectid_to_str(model.model_dump())
 
 def get_config(filename: str):
     """
