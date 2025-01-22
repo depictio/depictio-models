@@ -50,9 +50,14 @@ class Project(MongoModel):
         """
         Automatically convert a string into a Description object during validation.
         """
-        if isinstance(value, str):
+        if not value:
+            return None
+        if isinstance(value, dict):
             return Description(description=value)
-        return value
+        if isinstance(value, Description):
+            return value
+        raise ValueError("Invalid type for description, expected str or Description.")
+
 
     # @field_validator("description")
     # def sanitize_description(cls, value):

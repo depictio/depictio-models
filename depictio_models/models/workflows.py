@@ -49,7 +49,8 @@ class WorkflowConfig(MongoModel):
 
             # Validate the expanded paths if in CLI context
             return [DirectoryPath(path=Path(location)).path for location in expanded_paths]
-        return expanded_paths
+        else:
+            return value
 
     @field_validator("runs_regex", mode="before")
     def validate_regex(cls, v):
@@ -172,7 +173,7 @@ class Workflow(MongoModel):
     version: Optional[str] = None
     catalog: Optional[WorkflowCatalog] = None
     workflow_tag: Optional[str] = None
-    description: Optional[Description] = Field(alias="description")  # Use alias for YAML input
+    description: Optional[Description] = None
     repository_url: Optional[str]
     data_collections: List[DataCollection]
     runs: Optional[Dict[str, WorkflowRun]] = dict()
@@ -182,7 +183,7 @@ class Workflow(MongoModel):
     @field_validator("version", mode="before")
     def validate_version(cls, value):
         if not value:
-            raise ValueError("version is required")
+            return None
         if not isinstance(value, str):
             raise ValueError("version must be a string")
         return value
@@ -192,6 +193,12 @@ class Workflow(MongoModel):
         """
         Automatically convert a string into a Description object during validation.
         """
+        logger.info(f"Value: {value}")
+        logger.info(f"Type: {type(value)}")
+        if not value:
+            return None
+        if isinstance(value, dict):
+            return Description(**value)
         if isinstance(value, str):
             return Description(description=value)
         if isinstance(value, Description):
