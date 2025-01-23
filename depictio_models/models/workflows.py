@@ -10,7 +10,7 @@ from pydantic import (
     model_validator,
 )
 from depictio_models.models.files import File
-from depictio_models.models.base import Description, DirectoryPath, MongoModel, PyObjectId
+from depictio_models.models.base import DirectoryPath, MongoModel, PyObjectId
 from depictio_models.models.data_collections import DataCollection
 from depictio_models.logging import logger
 
@@ -173,7 +173,7 @@ class Workflow(MongoModel):
     version: Optional[str] = None
     catalog: Optional[WorkflowCatalog] = None
     workflow_tag: Optional[str] = None
-    description: Optional[Description] = None
+    # description: Optional[Description] = None
     repository_url: Optional[str]
     data_collections: List[DataCollection]
     runs: Optional[Dict[str, WorkflowRun]] = dict()
@@ -188,22 +188,22 @@ class Workflow(MongoModel):
             raise ValueError("version must be a string")
         return value
 
-    @field_validator("description", mode="before")
-    def parse_description(cls, value):
-        """
-        Automatically convert a string into a Description object during validation.
-        """
-        logger.info(f"Value: {value}")
-        logger.info(f"Type: {type(value)}")
-        if not value:
-            return None
-        if isinstance(value, dict):
-            return Description(**value)
-        if isinstance(value, str):
-            return Description(description=value)
-        if isinstance(value, Description):
-            return value
-        raise ValueError("Invalid type for description, expected str or Description.")
+    # @field_validator("description", mode="before")
+    # def parse_description(cls, value):
+    #     """
+    #     Automatically convert a string into a Description object during validation.
+    #     """
+    #     logger.info(f"Value: {value}")
+    #     logger.info(f"Type: {type(value)}")
+    #     if not value:
+    #         return None
+    #     # if isinstance(value, dict):
+    #     #     return Description(**value)
+    #     if isinstance(value, str):
+    #         return Description(description=value)
+    #     if isinstance(value, Description):
+    #         return value
+    #     raise ValueError("Invalid type for description, expected str or Description.")
 
 
     @model_validator(mode="before")

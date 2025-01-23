@@ -10,7 +10,7 @@ from pydantic import (
     model_validator,
 )
 
-from depictio_models.models.base import Description, MongoModel, PyObjectId
+from depictio_models.models.base import MongoModel, PyObjectId
 from depictio_models.models.data_collections_types.jbrowse import DCJBrowse2Config
 from depictio_models.models.data_collections_types.table import DCTableConfig
 
@@ -149,37 +149,29 @@ class DataCollectionConfig(MongoModel):
 
 class DataCollection(MongoModel):
     data_collection_tag: str
-    description: Optional[str] = None
+    # description: Optional[Description] = None
     config: DataCollectionConfig
 
-    # @field_validator("description", mode="before")
-    # def parse_description(cls, value):
-    #     """
-    #     Automatically convert a string into a Description object during validation.
-    #     """
-    #     if isinstance(value, str):
-    #         return Description(description=value)
-    #     return value
 
     def __eq__(self, other):
         if isinstance(other, DataCollection):
             return all(getattr(self, field) == getattr(other, field) for field in self.model_fields.keys() if field not in ["id", "registration_time"])
         return NotImplemented
     
-    @field_validator("description", mode="before")
-    def parse_description(cls, value):
-        """
-        Automatically convert a string into a Description object during validation.
-        """
-        logger.info(f"Value: {value}")
-        logger.info(f"Type: {type(value)}")
-        if not value:
-            return None
-        if isinstance(value, dict):
-            return Description(**value)
-        if isinstance(value, str):
-            return Description(description=value)
-        if isinstance(value, Description):
-            return value
-        raise ValueError("Invalid type for description, expected str or Description.")
+    # @field_validator("description", mode="before")
+    # def parse_description(cls, value):
+    #     """
+    #     Automatically convert a string into a Description object during validation.
+    #     """
+    #     logger.info(f"Value: {value}")
+    #     logger.info(f"Type: {type(value)}")
+    #     if not value:
+    #         return None
+    #     # if isinstance(value, dict):
+    #     #     return Description(**value)
+    #     if isinstance(value, str):
+    #         return Description(description=value)
+    #     if isinstance(value, Description):
+    #         return value
+    #     raise ValueError("Invalid type for description, expected str or Description.")
 

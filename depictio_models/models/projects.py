@@ -7,12 +7,12 @@ from pydantic import field_validator
 
 from depictio_models.models.users import Permission
 from depictio_models.models.workflows import Workflow
-from depictio_models.models.base import Description, MongoModel
-
+from depictio_models.models.base import MongoModel
+from depictio_models.logging import logger
 
 class Project(MongoModel):
     name: str
-    description: Optional[str] = None  # Store as a plain string in YAML
+    # description: Optional[Description] = None  # Store as a plain string in YAML
     # description: Optional[str] = None
     data_management_platform_project_url: Optional[str] = None
     workflows: List[Workflow]
@@ -45,18 +45,20 @@ class Project(MongoModel):
             raise ValueError("Invalid URL")
         return v
 
-    @field_validator("description", mode="before")
-    def parse_description(cls, value):
-        """
-        Automatically convert a string into a Description object during validation.
-        """
-        if not value:
-            return None
-        if isinstance(value, dict):
-            return Description(description=value)
-        if isinstance(value, Description):
-            return value
-        raise ValueError("Invalid type for description, expected str or Description.")
+    # @field_validator("description", mode="before")
+    # def parse_description(cls, value):
+    #     """
+    #     Automatically convert a string into a Description object during validation.
+    #     """
+    #     logger.info(f"Value: {value}")
+    #     logger.info(f"Type: {type(value)}")
+    #     if not value:
+    #         return None
+    #     if isinstance(value, dict):
+    #         return Description(description=value)
+    #     if isinstance(value, Description):
+    #         return value
+    #     raise ValueError("Invalid type for description, expected str or Description.")
 
 
     # @field_validator("description")
