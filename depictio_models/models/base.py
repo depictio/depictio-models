@@ -3,6 +3,7 @@ import hashlib
 import html
 import os
 from pathlib import Path, PosixPath
+from typing import Optional
 import bleach
 from bson import ObjectId
 from pydantic import BaseModel, Field, GetCoreSchemaHandler, model_validator, field_validator
@@ -53,23 +54,32 @@ class PyObjectId(ObjectId):
         raise ValueError(f"Invalid ObjectId: {v}")
 
 
-class Description(BaseModel):
-    description: str
+# class Description(BaseModel):
+#     description: str
+
+
+
+class MongoModel(BaseModel):
+    id: PyObjectId = Field(default=PyObjectId())  # Handles MongoDB `_id`
+    # id: PyObjectId = Field(default=PyObjectId(), alias="_id")  # Handles MongoDB `_id`
+    description : Optional[str] = None
 
     @field_validator("description")
-    def sanitize_description(cls, value: str) -> str:
+    def sanitize_description(cls, value):
         """
         Sanitizes the input to ensure it is plain text and neutralizes any code.
         Converts special characters to their HTML-safe equivalents to neutralize code execution.
         Ensures no HTML tags or JavaScript can persist in the sanitized description.
         """
         # If value is a Description instance, extract the string
-        if isinstance(value, Description):
-            value = value.description
+        # if isinstance(value, Description):
+        #     value = value.description
 
-        # Ensure the value is a string
-        if not isinstance(value, str):
-            raise ValueError("Description must be a string.")
+        logger.info(f"DEBUG - Description: {value}")
+
+        if not value:
+            logger.info("No description provided.")
+            return None
 
         # Step 1: Convert special characters to their HTML-safe equivalents
         neutralized = html.escape(value)
@@ -86,11 +96,6 @@ class Description(BaseModel):
             raise ValueError("Description must be less than 1000 characters.")
 
         return sanitized
-
-
-class MongoModel(BaseModel):
-    id: PyObjectId = Field(default=PyObjectId())  # Handles MongoDB `_id`
-    # id: PyObjectId = Field(default=PyObjectId(), alias="_id")  # Handles MongoDB `_id`
 
     class Config:
         extra = "forbid"
