@@ -59,10 +59,3 @@ class MinIOS3Config(BaseModel):
             raise ValueError("Root password cannot be empty")
         return v
     
-    @field_validator("endpoint")
-    def validate_internal_endpoint(cls, v):
-        if not v:
-            raise ValueError("Endpoint cannot be empty")
-        if not re.match(r"^https?://[^/]+", v):
-            raise ValueError("Invalid URL format")
-        return v
