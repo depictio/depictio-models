@@ -1,23 +1,25 @@
-import hashlib
 import os
 import yaml
-from typing import Dict, List, Type
+from typing import Dict, Type
+from typeguard import typechecked
 from pydantic import BaseModel, ValidationError
 
 from depictio_models.logging import logger
-from depictio_models.models.base import PyObjectId, convert_objectid_to_str
+from depictio_models.models.base import convert_objectid_to_str
 
 
 def get_depictio_context():
     return os.getenv("DEPICTIO_CONTEXT")
 
+@typechecked
 def convert_model_to_dict(model: BaseModel) -> Dict:
     """
     Convert a Pydantic model to a dictionary.
     """
     return convert_objectid_to_str(model.model_dump())
 
-def get_config(filename: str):
+@typechecked
+def get_config(filename: str) -> dict:
     """
     Get the config file.
     """
@@ -34,8 +36,7 @@ def get_config(filename: str):
             yaml_data = yaml.safe_load(f)
         return yaml_data
 
-
-def substitute_env_vars(config: Dict) -> Dict:
+def substitute_env_vars(config):
     """
     Recursively substitute environment variables in the configuration dictionary.
 
@@ -56,8 +57,8 @@ def substitute_env_vars(config: Dict) -> Dict:
     else:
         return config
 
-
-def validate_model_config(config: Dict, pydantic_model: Type[BaseModel]) -> BaseModel:
+@typechecked
+def validate_model_config(config: dict, pydantic_model: Type[BaseModel]) -> BaseModel:
     """
     Load and validate the YAML configuration
     """
