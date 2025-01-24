@@ -20,7 +20,8 @@ setup(
         "pydantic",
         "bleach",
         "bson",
-        "colorlog"
+        "colorlog",
+        "typeguard",
     ],
     python_requires=">=3.8",
     classifiers=[
