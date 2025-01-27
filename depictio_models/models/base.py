@@ -136,6 +136,7 @@ class MongoModel(BaseModel):
 
         # Helper function to convert nested documents
         def convert_ids(document):
+            # logger.warning(f"Converting : {document}")
             if isinstance(document, list):
                 return [convert_ids(item) for item in document]
             if isinstance(document, dict):
@@ -143,10 +144,17 @@ class MongoModel(BaseModel):
                 id = document.pop("_id", None)
                 if id:
                     document["id"] = id
+            if isinstance(document, str):
+                return str(document)
             return document
 
         data = convert_ids(data)
-        return cls(**data)
+        # Ensure 'hash' is explicitly retained
+        hash_value = data.get('hash')
+        instance = cls(**data)
+        if hash_value is not None:
+            instance.hash = hash_value
+        return instance
 
     def mongo(self, **kwargs):
         exclude_unset = kwargs.pop("exclude_unset", False)
