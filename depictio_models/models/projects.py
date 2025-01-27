@@ -19,6 +19,24 @@ class Project(MongoModel):
     # depictio_version: str
     yaml_config_path: str
     permissions: Permission
+    hash: Optional[str] = None
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v):
+        if not v:
+            raise ValueError("Project name cannot be empty")
+        return v
+    
+    @field_validator("hash")
+    @classmethod
+    def validate_hash(cls, v):
+        if v:
+            # hashlib.md5().encode().hexdigest() - 32 characters
+            if len(v) != 32:
+                raise ValueError("Invalid hash value, must be 32 characters long")
+        return None
+
 
     # @field_validator("depictio_version")
     # @classmethod
