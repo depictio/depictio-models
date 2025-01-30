@@ -58,11 +58,11 @@ class PyObjectId(ObjectId):
 #     description: str
 
 
-
 class MongoModel(BaseModel):
     id: PyObjectId = Field(default=PyObjectId())  # Handles MongoDB `_id`
     # id: PyObjectId = Field(default=PyObjectId(), alias="_id")  # Handles MongoDB `_id`
-    description : Optional[str] = None
+    description: Optional[str] = None
+    flexible_metadata: Optional[dict] = None
 
     @field_validator("description")
     def sanitize_description(cls, value):
@@ -150,7 +150,7 @@ class MongoModel(BaseModel):
 
         data = convert_ids(data)
         # Ensure 'hash' is explicitly retained
-        hash_value = data.get('hash')
+        hash_value = data.get("hash")
         instance = cls(**data)
         if hash_value is not None:
             instance.hash = hash_value
@@ -177,7 +177,30 @@ class MongoModel(BaseModel):
 
         return parsed
 
+    def tinydb(self, **kwargs):
+        exclude_unset = kwargs.pop("exclude_unset", False)
+        by_alias = kwargs.pop("by_alias", True)
 
+        parsed = self.model_dump(
+            exclude_unset=exclude_unset,
+            by_alias=by_alias,
+            **kwargs,
+        )
+
+        converted = {}
+        # Convert Path and datetime objects to serializable types
+        for key, value in parsed.items():
+            if isinstance(value, Path):
+                converted[key] = str(value)  # Convert Path to string
+            elif isinstance(value, datetime):
+                converted[key] = value.isoformat()  # Convert datetime to ISO string
+            else:
+                converted[key] = value
+
+        # Second pass: remove None values safely
+        cleaned = {k: v for k, v in converted.items() if v is not None}
+
+        return convert_objectid_to_str(cleaned)
 
 
 class DirectoryPath(BaseModel):
