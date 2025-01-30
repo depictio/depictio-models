@@ -61,15 +61,43 @@ class WorkflowConfig(MongoModel):
             raise ValueError("Invalid regex pattern")
 
 
+
+
 class WorkflowRun(MongoModel):
     workflow_id: PyObjectId
     run_tag: str
-    files: List[File] = []
-    workflow_config: WorkflowConfig
-    run_location: DirectoryPath
+    files_id: List[PyObjectId] = []
+    workflow_config_id: PyObjectId
+    run_location: str
     execution_time: datetime
-    execution_profile: Optional[Dict]
+    # execution_profile: Optional[Dict]
     registration_time: datetime = datetime.now()
+
+    @field_validator("run_location", mode="after")
+    def validate_and_recast_parent_runs_location(cls, value):
+        if DEPICTIO_CONTEXT == "CLI":
+            # Recast to List[DirectoryPath] and validate
+
+            env_var_pattern = re.compile(r"\{([A-Z0-9_]+)\}")
+
+            expanded_paths = []
+            location = value
+            matches = env_var_pattern.findall(location)
+            for match in matches:
+                env_value = os.environ.get(match)
+                logger.debug(f"Original path: {location}")
+                logger.debug(f"Expanded path: {location.replace(f'{{{match}}}', env_value)}")
+
+                if not env_value:
+                    raise ValueError(f"Environment variable '{match}' is not set for path '{location}'.")
+                # Replace the placeholder with the actual value
+                location = location.replace(f"{{{match}}}", env_value)
+            expanded_paths.append(location)
+
+            # Validate the expanded paths if in CLI context
+            return DirectoryPath(path=Path(location)).path
+        else:
+            return value
 
     @model_validator(mode="before")
     def set_default_id(cls, values):
@@ -78,16 +106,18 @@ class WorkflowRun(MongoModel):
         values["id"] = PyObjectId()
         return values
 
-    @field_validator("files", mode="before")
+    @field_validator("files_id", mode="before")
     def validate_files(cls, value):
         if not isinstance(value, list):
             raise ValueError("files must be a list")
+        # if not all(isinstance(file, PyObjectId) for file in value):
+        #     raise ValueError("files must be a list of PyObjectId")
         return value
 
-    @field_validator("workflow_config", mode="before")
+    @field_validator("workflow_config_id", mode="before")
     def validate_workflow_config(cls, value):
-        if not isinstance(value, WorkflowConfig):
-            raise ValueError("workflow_config must be a WorkflowConfig")
+        if not isinstance(value, PyObjectId):
+            raise ValueError("workflow_config_id must be a PyObjectId")
         return value
 
     @field_validator("execution_time", mode="before")
@@ -142,11 +172,12 @@ class WorkflowEngine(BaseModel):
             "c",
             "c++",
             "go",
-            "rust",            
+            "rust",
         ]
         if value not in allowed_values:
             raise ValueError(f"workflow_engine must be one of {allowed_values}")
         return value
+
 
 class WorkflowCatalog(BaseModel):
     name: Optional[str]
@@ -160,7 +191,7 @@ class WorkflowCatalog(BaseModel):
         if not re.match(r"^(https?|git)://", value):
             raise ValueError("Invalid URL")
         return value
-    
+
     @field_validator("name", mode="before")
     def validate_workflow_catalog_name(cls, value):
         if value not in ["workflowhub", "nf-core", "smk-wf-catalog"]:
@@ -204,7 +235,6 @@ class Workflow(MongoModel):
     #     if isinstance(value, Description):
     #         return value
     #     raise ValueError("Invalid type for description, expected str or Description.")
-
 
     @model_validator(mode="before")
     @classmethod
