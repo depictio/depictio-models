@@ -16,21 +16,48 @@ class WildcardRegex(WildcardRegexBase):
     value: str
 
 
+# class FileBase(MongoModel):
+#     file_location: FilePath
+#     filename: str
+#     creation_time: datetime
+#     modification_time: datetime
+#     run_id: PyObjectId
+#     data_collection_id: PyObjectId
+#     registration_time: datetime = datetime.now()
+# file_hash: Optional[str] = None
+
+
 class File(MongoModel):
     # id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
     # id: Optional[PyObjectId] = None
+    # S3_location: Optional[str] = None
+    # S3_key_hash: Optional[str] = None
+    # trackId: Optional[str] = None
     file_location: FilePath
-    S3_location: Optional[str] = None
-    S3_key_hash: Optional[str] = None
-    trackId: Optional[str] = None
     filename: str
     creation_time: datetime
     modification_time: datetime
-    data_collection: DataCollection
-    # file_hash: Optional[str] = None
-    run_id: Optional[str] = None
+    run_id: PyObjectId
+    data_collection_id: PyObjectId
     registration_time: datetime = datetime.now()
-    wildcards: Optional[List[WildcardRegex]]
+    file_hash: str
+    # file_hash: Optional[str] = None
+    # wildcards: Optional[List[WildcardRegex]]
+
+
+    @field_validator("filename")
+    def validate_filename(cls, v):
+        if not v:
+            raise ValueError("Filename cannot be empty")
+        return v
+
+    @field_validator("file_hash")
+    def validate_hash(cls, v):
+        if not v:
+            raise ValueError("Hash cannot be empty")
+        if len(v) != 64:
+            raise ValueError("Invalid hash value, must be 32 characters long")
+        return v
 
     @model_validator(mode="before")
     def set_default_id(cls, values):
