@@ -69,9 +69,11 @@ class WorkflowRun(MongoModel):
     files_id: List[PyObjectId] = []
     workflow_config_id: PyObjectId
     run_location: str
-    execution_time: datetime
+    creation_time: datetime
+    last_modification_time: datetime
     # execution_profile: Optional[Dict]
     registration_time: datetime = datetime.now()
+    hash: str = None
 
     @field_validator("run_location", mode="after")
     def validate_and_recast_parent_runs_location(cls, value):
@@ -99,6 +101,15 @@ class WorkflowRun(MongoModel):
         else:
             return value
 
+    @field_validator("hash", mode="before")
+    def validate_hash(cls, value):
+        if not value:
+            raise ValueError("hash is required")
+        # tolerate empty hash or hash of length 64
+        if len(value) == 0 or len(value) == 64:
+            return value
+
+
     @model_validator(mode="before")
     def set_default_id(cls, values):
         if values is None or "id" not in values or values["id"] is None:
@@ -120,8 +131,19 @@ class WorkflowRun(MongoModel):
             raise ValueError("workflow_config_id must be a PyObjectId")
         return value
 
-    @field_validator("execution_time", mode="before")
+    @field_validator("creation_time", mode="before")
     def validate_creation_time(cls, value):
+        if type(value) is not datetime:
+            try:
+                dt = datetime.fromisoformat(value)
+                return dt.strftime("%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                raise ValueError("Invalid datetime format")
+        else:
+            return value.strftime("%Y-%m-%d %H:%M:%S")
+
+    @field_validator("last_modification_time", mode="before")
+    def validate_last_modification_time(cls, value):
         if type(value) is not datetime:
             try:
                 dt = datetime.fromisoformat(value)
