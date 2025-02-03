@@ -59,10 +59,46 @@ class PyObjectId(ObjectId):
 
 
 class MongoModel(BaseModel):
-    id: PyObjectId = Field(default=PyObjectId())  # Handles MongoDB `_id`
-    # id: PyObjectId = Field(default=PyObjectId(), alias="_id")  # Handles MongoDB `_id`
+    id: PyObjectId = Field(default=PyObjectId())  
     description: Optional[str] = None
     flexible_metadata: Optional[dict] = None
+
+    class Config:
+        extra = "forbid"
+        # allow_population_by_field_name = True
+        json_encoders = {
+            datetime: lambda dt: dt.isoformat(),
+            ObjectId: lambda oid: str(oid),
+            PosixPath: lambda path: str(path),
+        }
+
+
+
+    @model_validator(mode="before")
+    @classmethod
+    def ensure_id(cls, values: dict) -> dict:
+        """
+        Ensures the `_id` field uses the provided value or generates a new ObjectId.
+        """
+        logger.warning(f"Ensuring values: {values}")
+
+    
+        # If values is not a dict, skip processing and return as-is
+        if not isinstance(values, dict):
+            return values
+
+        # If '_id' is provided, move it to 'id' and remove '_id'
+        if "_id" in values:
+            values["id"] = values.pop("_id")
+        if "id" in values and values["id"] is not None:
+            # If `id` is provided, validate and retain it
+            logger.warning(f"Validating ID: {values['id']}")
+            values["id"] = PyObjectId.validate(values["id"])
+        else:
+            # Generate a new ObjectId if no valid ID is provided
+            values["id"] = PyObjectId()
+        return values
+
 
     @field_validator("description")
     def sanitize_description(cls, value):
@@ -97,42 +133,13 @@ class MongoModel(BaseModel):
 
         return sanitized
 
-    class Config:
-        extra = "forbid"
-        # allow_population_by_field_name = True
-        json_encoders = {
-            datetime: lambda dt: dt.isoformat(),
-            ObjectId: lambda oid: str(oid),
-            PosixPath: lambda path: str(path),
-        }
-
-    @model_validator(mode="before")
-    @classmethod
-    def ensure_id(cls, values: dict) -> dict:
-        """
-        Ensures the `_id` field uses the provided value or generates a new ObjectId.
-        """
-        # If values is not a dict, skip processing and return as-is
-        if not isinstance(values, dict):
-            return values
-
-        logger.info(f"Ensuring ID: {values}")
-        if "_id" in values and values["_id"] is not None:
-            # If `_id` is provided, validate and retain it
-            values["id"] = PyObjectId.validate(values["_id"])
-        elif "id" in values and values["id"] is not None:
-            # If `id` is provided, validate and retain it
-            values["id"] = PyObjectId.validate(values["id"])
-        else:
-            # Generate a new ObjectId if no valid ID is provided
-            values["id"] = PyObjectId()
-        return values
 
     @classmethod
     def from_mongo(cls, data: dict):
         """We must convert _id into "id"."""
         if not data:
             return data
+
 
         # Helper function to convert nested documents
         def convert_ids(document):
