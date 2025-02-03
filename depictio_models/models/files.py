@@ -35,12 +35,13 @@ class File(MongoModel):
     # trackId: Optional[str] = None
     file_location: FilePath
     filename: str
-    creation_time: datetime
-    modification_time: datetime
-    run_id: PyObjectId
+    creation_time: str
+    modification_time: str
+    run_id: Optional[PyObjectId] = None
     data_collection_id: PyObjectId
-    registration_time: datetime = datetime.now()
+    registration_time: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     file_hash: str
+    filesize: int
     # file_hash: Optional[str] = None
     # wildcards: Optional[List[WildcardRegex]]
 
@@ -51,6 +52,14 @@ class File(MongoModel):
             raise ValueError("Filename cannot be empty")
         return v
 
+    @field_validator("filesize")
+    def validate_size(cls, v):
+        if v < 0:
+            raise ValueError("File size cannot be negative")
+        if v == 0:
+            raise ValueError("File size cannot be zero")
+        return v
+
     @field_validator("file_hash")
     def validate_hash(cls, v):
         if not v:
@@ -59,12 +68,12 @@ class File(MongoModel):
             raise ValueError("Invalid hash value, must be 32 characters long")
         return v
 
-    @model_validator(mode="before")
-    def set_default_id(cls, values):
-        if values is None or "id" not in values or values["id"] is None:
-            return values  # Ensure we don't proceed if values is None
-        values["id"] = PyObjectId()
-        return values
+    # @model_validator(mode="before")
+    # def set_default_id(cls, values):
+    #     if values is None or "id" not in values or values["id"] is None:
+    #         return values  # Ensure we don't proceed if values is None
+    #     values["id"] = PyObjectId()
+    #     return values
 
     @field_validator("creation_time", mode="before")
     def validate_creation_time(cls, value):
