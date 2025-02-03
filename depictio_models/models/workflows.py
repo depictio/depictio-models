@@ -19,16 +19,20 @@ DEPICTIO_CONTEXT = os.getenv("DEPICTIO_CONTEXT")
 logger.info(f"DEPICTIO_CONTEXT: {DEPICTIO_CONTEXT}")
 
 
-class WorkflowConfig(MongoModel):
-    # parent_runs_location: List[DirectoryPath]
-    # FIXME: Change parent_runs_location to a list of DirectoryPath
-    parent_runs_location: List[str]
-    workflow_version: Optional[str] = None
-    runs_regex: str
+class WorkflowDataLocation(MongoModel):
+    structure: str
+    locations: List[str]
+    runs_regex: Optional[str] = None
 
-    @field_validator("parent_runs_location", mode="after")
+    @field_validator("structure", mode="before")
+    def validate_mode(cls, value):
+        if value not in ["flat", "sequencing-runs"]:
+            raise ValueError("structure must be either 'flat' or 'sequencing-runs'")
+        return value
+
+    @field_validator("locations", mode="after")
     def validate_and_recast_parent_runs_location(cls, value):
-        if DEPICTIO_CONTEXT == "CLI":
+        if DEPICTIO_CONTEXT.lower() == "cli":
             # Recast to List[DirectoryPath] and validate
 
             env_var_pattern = re.compile(r"\{([A-Z0-9_]+)\}")
@@ -52,15 +56,25 @@ class WorkflowConfig(MongoModel):
         else:
             return value
 
-    @field_validator("runs_regex", mode="before")
-    def validate_regex(cls, v):
-        try:
-            re.compile(v)
-            return v
-        except re.error:
-            raise ValueError("Invalid regex pattern")
+    @model_validator(mode="before")
+    def validate_regex(cls, values):
+        # only if mode is 'sequencing-runs' - check mode first
+        if values["structure"] == "sequencing-runs":
+            logger.warning("DEPICTIO CONTEXT: %s", DEPICTIO_CONTEXT)
+            logger.warning(f"Values: {values}")
+            if not values["runs_regex"]:
+                raise ValueError("runs_regex is required when mode is 'sequencing-runs'")
+            # just check if the regex is valid
+            try:
+                re.compile(values["runs_regex"])
+                return values
+            except re.error:
+                raise ValueError("Invalid runs_regex pattern")
 
 
+class WorkflowConfig(MongoModel):
+    version: Optional[str] = None
+    workflow_parameters: Optional[Dict] = None
 
 
 class WorkflowRun(MongoModel):
@@ -69,10 +83,11 @@ class WorkflowRun(MongoModel):
     files_id: List[PyObjectId] = []
     workflow_config_id: PyObjectId
     run_location: str
-    creation_time: datetime
-    last_modification_time: datetime
+    creation_time: str
+    last_modification_time: str
     # execution_profile: Optional[Dict]
-    registration_time: datetime = datetime.now()
+    # generate default value for registration_time as current time and format as string
+    registration_time: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     hash: str = None
 
     @field_validator("run_location", mode="after")
@@ -103,19 +118,16 @@ class WorkflowRun(MongoModel):
 
     @field_validator("hash", mode="before")
     def validate_hash(cls, value):
-        if not value:
-            raise ValueError("hash is required")
         # tolerate empty hash or hash of length 64
         if len(value) == 0 or len(value) == 64:
             return value
 
-
-    @model_validator(mode="before")
-    def set_default_id(cls, values):
-        if values is None or "id" not in values or values["id"] is None:
-            return values  # Ensure we don't proceed if values is None
-        values["id"] = PyObjectId()
-        return values
+    # @model_validator(mode="before")
+    # def set_default_id(cls, values):
+    #     if values is None or "id" not in values or values["id"] is None:
+    #         return values  # Ensure we don't proceed if values is None
+    #     values["id"] = PyObjectId()
+    #     return values
 
     @field_validator("files_id", mode="before")
     def validate_files(cls, value):
@@ -133,36 +145,33 @@ class WorkflowRun(MongoModel):
 
     @field_validator("creation_time", mode="before")
     def validate_creation_time(cls, value):
+        # check if compliant with %Y-%m-%d %H:%M:%S" format
         if type(value) is not datetime:
             try:
                 dt = datetime.fromisoformat(value)
                 return dt.strftime("%Y-%m-%d %H:%M:%S")
             except ValueError:
                 raise ValueError("Invalid datetime format")
-        else:
-            return value.strftime("%Y-%m-%d %H:%M:%S")
 
     @field_validator("last_modification_time", mode="before")
     def validate_last_modification_time(cls, value):
+        # check if compliant with %Y-%m-%d %H:%M:%S" format
         if type(value) is not datetime:
             try:
                 dt = datetime.fromisoformat(value)
                 return dt.strftime("%Y-%m-%d %H:%M:%S")
             except ValueError:
                 raise ValueError("Invalid datetime format")
-        else:
-            return value.strftime("%Y-%m-%d %H:%M:%S")
 
     @field_validator("registration_time", mode="before")
     def validate_registration_time(cls, value):
+        # check if compliant with %Y-%m-%d %H:%M:%S" format
         if type(value) is not datetime:
             try:
                 dt = datetime.fromisoformat(value)
                 return dt.strftime("%Y-%m-%d %H:%M:%S")
             except ValueError:
                 raise ValueError("Invalid datetime format")
-        else:
-            return value.strftime("%Y-%m-%d %H:%M:%S")
 
 
 class WorkflowEngine(BaseModel):
@@ -230,7 +239,8 @@ class Workflow(MongoModel):
     repository_url: Optional[str]
     data_collections: List[DataCollection]
     runs: Optional[Dict[str, WorkflowRun]] = dict()
-    config: WorkflowConfig
+    config: Optional[WorkflowConfig] = Field(default_factory=WorkflowConfig)
+    data_location: WorkflowDataLocation
     registration_time: datetime = datetime.now()
 
     @field_validator("version", mode="before")
