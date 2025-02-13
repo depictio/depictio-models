@@ -1,14 +1,17 @@
+from datetime import datetime
 import os
 import re
 import bleach
 import html
 from typing import List, Optional
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
+import hashlib, json
 
 from depictio_models.models.users import Permission
 from depictio_models.models.workflows import Workflow
-from depictio_models.models.base import MongoModel
+from depictio_models.models.base import MongoModel, convert_objectid_to_str
 from depictio_models.logging import logger
+
 
 class Project(MongoModel):
     name: str
@@ -20,6 +23,7 @@ class Project(MongoModel):
     yaml_config_path: str
     permissions: Permission
     hash: Optional[str] = None
+    registration_time: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     @field_validator("name")
     @classmethod
@@ -27,16 +31,24 @@ class Project(MongoModel):
         if not v:
             raise ValueError("Project name cannot be empty")
         return v
-    
-    @field_validator("hash")
-    @classmethod
-    def validate_hash(cls, v):
-        if v:
-            # hashlib.md5().encode().hexdigest() - 32 characters
-            if len(v) != 32:
-                raise ValueError("Invalid hash value, must be 32 characters long")
-        return None
 
+
+
+    @model_validator(mode="before")
+    def compute_hash(cls, values: dict) -> dict:
+        """
+        Compute the hash of the project configuration.
+        """
+        # Compute the hash of the project configuration after removing all the "registration_time" fields in project and nested objects
+        values.pop("registration_time", None)
+        for workflow in values["workflows"]:
+            workflow.pop("registration_time", None)
+            for data_collection in workflow["data_collections"]:
+                data_collection.pop("registration_time", None)
+
+        hash_str = hashlib.md5(json.dumps(convert_objectid_to_str(values), sort_keys=True).encode()).hexdigest()
+        values["hash"] = hash_str
+        return values
 
     # @field_validator("depictio_version")
     # @classmethod
@@ -46,7 +58,7 @@ class Project(MongoModel):
     #     if not re.match(pattern, v):
     #         raise ValueError("Invalid version number, must be in format X.Y.Z where X, Y, Z are integers")
     #     return v
-    
+
     @field_validator("yaml_config_path")
     @classmethod
     def validate_yaml_config_path(cls, v):
@@ -78,7 +90,6 @@ class Project(MongoModel):
     #         return value
     #     raise ValueError("Invalid type for description, expected str or Description.")
 
-
     # @field_validator("description")
     # def sanitize_description(cls, value):
     #     """
@@ -95,7 +106,7 @@ class Project(MongoModel):
     #         raise ValueError("Description must be less than 1000 characters.")
 
     #     return sanitized
-    
+
     # @model_validator(mode="before")
     # @classmethod
     # def ensure_id(cls, values: dict) -> dict:
