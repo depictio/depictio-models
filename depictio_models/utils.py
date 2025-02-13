@@ -2,7 +2,7 @@ import os
 import yaml
 from typing import Dict, Type
 from typeguard import typechecked
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, validate_call
 
 from depictio_models.logging import logger
 from depictio_models.models.base import convert_objectid_to_str
@@ -11,14 +11,14 @@ from depictio_models.models.base import convert_objectid_to_str
 def get_depictio_context():
     return os.getenv("DEPICTIO_CONTEXT")
 
-@typechecked
+@validate_call
 def convert_model_to_dict(model: BaseModel) -> Dict:
     """
     Convert a Pydantic model to a dictionary.
     """
     return convert_objectid_to_str(model.model_dump())
 
-@typechecked
+@validate_call
 def get_config(filename: str) -> dict:
     """
     Get the config file.
@@ -57,7 +57,7 @@ def substitute_env_vars(config):
     else:
         return config
 
-@typechecked
+@validate_call
 def validate_model_config(config: dict, pydantic_model: Type[BaseModel]) -> BaseModel:
     """
     Load and validate the YAML configuration
