@@ -77,6 +77,12 @@ class WorkflowConfig(MongoModel):
     workflow_parameters: Optional[Dict] = None
 
 
+class WorkflowRunScan(BaseModel):
+    stats: Dict[str, int]
+    files_id: Dict[str, List[PyObjectId]]
+    scan_time: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
 class WorkflowRun(MongoModel):
     workflow_id: PyObjectId
     run_tag: str
@@ -88,7 +94,14 @@ class WorkflowRun(MongoModel):
     # execution_profile: Optional[Dict]
     # generate default value for registration_time as current time and format as string
     registration_time: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    hash: str = None
+    run_hash: str = None
+    scan_results: Optional[List[WorkflowRunScan]] = []
+
+    # @field_validator("workflow_config_id", mode="before")
+    # def validate_workflow_config(cls, value):
+    #     # if not isinstance(value, PyObjectId):
+    #     #     raise ValueError("workflow_config_id must be a PyObjectId")
+    #     return value
 
     @field_validator("run_location", mode="after")
     def validate_and_recast_parent_runs_location(cls, value):
@@ -116,7 +129,7 @@ class WorkflowRun(MongoModel):
         else:
             return value
 
-    @field_validator("hash", mode="before")
+    @field_validator("run_hash", mode="before")
     def validate_hash(cls, value):
         # tolerate empty hash or hash of length 64
         if len(value) == 0 or len(value) == 64:
@@ -139,8 +152,12 @@ class WorkflowRun(MongoModel):
 
     @field_validator("workflow_config_id", mode="before")
     def validate_workflow_config(cls, value):
-        if not isinstance(value, PyObjectId):
-            raise ValueError("workflow_config_id must be a PyObjectId")
+        if isinstance(value, PyObjectId):
+            return value
+        if isinstance(value, str):
+            return PyObjectId(value)
+        # if not isinstance(value, PyObjectId):
+        #     raise ValueError("workflow_config_id must be a PyObjectId")
         return value
 
     @field_validator("creation_time", mode="before")
@@ -241,7 +258,7 @@ class Workflow(MongoModel):
     runs: Optional[Dict[str, WorkflowRun]] = dict()
     config: Optional[WorkflowConfig] = Field(default_factory=WorkflowConfig)
     data_location: WorkflowDataLocation
-    registration_time: datetime = datetime.now()
+    registration_time: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     @field_validator("version", mode="before")
     def validate_version(cls, value):
