@@ -1,7 +1,8 @@
 from datetime import datetime
 import os
-from typing import List, Optional
+from typing import Dict, List, Optional
 from pydantic import (
+    BaseModel,
     Field,
     FilePath,
     field_validator,
@@ -10,6 +11,7 @@ from pydantic import (
 from depictio_models.models.data_collections import DataCollection, WildcardRegexBase
 from depictio_models.models.users import Permission
 from depictio_models.models.base import MongoModel, PyObjectId
+from depictio_models.logging import logger
 
 
 class WildcardRegex(WildcardRegexBase):
@@ -28,11 +30,6 @@ class WildcardRegex(WildcardRegexBase):
 
 
 class File(MongoModel):
-    # id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
-    # id: Optional[PyObjectId] = None
-    # S3_location: Optional[str] = None
-    # S3_key_hash: Optional[str] = None
-    # trackId: Optional[str] = None
     file_location: FilePath
     filename: str
     creation_time: str
@@ -42,9 +39,16 @@ class File(MongoModel):
     registration_time: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     file_hash: str
     filesize: int
+    permissions: Permission
+
+    # id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
+    # id: Optional[PyObjectId] = None
+    # S3_location: Optional[str] = None
+    # S3_key_hash: Optional[str] = None
+    # trackId: Optional[str] = None
+
     # file_hash: Optional[str] = None
     # wildcards: Optional[List[WildcardRegex]]
-
 
     @field_validator("filename")
     def validate_filename(cls, v):
@@ -114,3 +118,41 @@ class File(MongoModel):
     #         if not isinstance(value, str):
     #             raise ValueError("file_hash must be a string")
     #     return value
+
+
+class FileScanResult(BaseModel):
+    file: File
+    scan_result: Dict[str, str]
+    scan_time: str
+
+    class Config:
+        extra = "forbid"
+        allow_population_by_field_name = False
+
+    @field_validator("scan_result")
+    def validate_scan_result(cls, value):
+        logger.warning(f"Validating scan result: {value}")
+        if not isinstance(value, dict):
+            raise ValueError("Scan result must be a dictionary")
+
+        # value must contain following keys: "result", "reason"
+        if "result" not in value:
+            raise ValueError("Scan result must contain 'result' key")
+        if "reason" not in value:
+            raise ValueError("Scan result must contain 'reason' key")
+        if value["result"] not in ["success", "failure"]:
+            raise ValueError("Scan result must be one of ['success', 'failure']")
+        if value["reason"] not in ["added", "skipped", "updated", "failed"]:
+            raise ValueError("Scan reason must be one of ['added', 'skipped', 'updated', 'failed']")
+        return value
+
+    @field_validator("scan_time", mode="before")
+    def validate_modification_time(cls, value):
+        if type(value) is not datetime:
+            try:
+                dt = datetime.fromisoformat(value)
+                return dt.strftime("%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                raise ValueError("Invalid datetime format")
+        else:
+            return value.strftime("%Y-%m-%d %H:%M:%S")
