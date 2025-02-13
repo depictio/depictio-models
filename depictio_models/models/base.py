@@ -25,6 +25,8 @@ def convert_objectid_to_str(item):
         return str(item)
     elif isinstance(item, datetime):
         return item.strftime("%Y-%m-%d %H:%M:%S")
+    elif isinstance(item, Path):
+        return str(item)
     else:
         return item
 
@@ -51,6 +53,8 @@ class PyObjectId(ObjectId):
             return v
         if isinstance(v, str) and ObjectId.is_valid(v):
             return ObjectId(v)
+        if isinstance(v, PyObjectId):
+            return ObjectId(str(v))
         raise ValueError(f"Invalid ObjectId: {v}")
 
 
@@ -59,7 +63,7 @@ class PyObjectId(ObjectId):
 
 
 class MongoModel(BaseModel):
-    id: PyObjectId = Field(default=PyObjectId())  
+    id: PyObjectId = Field(default=PyObjectId())
     description: Optional[str] = None
     flexible_metadata: Optional[dict] = None
 
@@ -72,17 +76,14 @@ class MongoModel(BaseModel):
             PosixPath: lambda path: str(path),
         }
 
-
-
     @model_validator(mode="before")
     @classmethod
     def ensure_id(cls, values: dict) -> dict:
         """
         Ensures the `_id` field uses the provided value or generates a new ObjectId.
         """
-        logger.warning(f"Ensuring values: {values}")
+        logger.debug(f"Ensuring values: {values}")
 
-    
         # If values is not a dict, skip processing and return as-is
         if not isinstance(values, dict):
             return values
@@ -92,13 +93,12 @@ class MongoModel(BaseModel):
             values["id"] = values.pop("_id")
         if "id" in values and values["id"] is not None:
             # If `id` is provided, validate and retain it
-            logger.warning(f"Validating ID: {values['id']}")
+            logger.debug(f"Validating ID: {values['id']}")
             values["id"] = PyObjectId.validate(values["id"])
         else:
             # Generate a new ObjectId if no valid ID is provided
             values["id"] = PyObjectId()
         return values
-
 
     @field_validator("description")
     def sanitize_description(cls, value):
@@ -133,13 +133,11 @@ class MongoModel(BaseModel):
 
         return sanitized
 
-
     @classmethod
     def from_mongo(cls, data: dict):
         """We must convert _id into "id"."""
         if not data:
             return data
-
 
         # Helper function to convert nested documents
         def convert_ids(document):
@@ -163,6 +161,22 @@ class MongoModel(BaseModel):
             instance.hash = hash_value
         return instance
 
+    def to_json(self, **kwargs):
+        parsed = self.model_dump(
+            exclude_unset=True,
+            by_alias=True,
+            **kwargs,
+        )
+
+        parsed = convert_objectid_to_str(parsed)
+
+        # Convert PosixPath to str
+        for key, value in parsed.items():
+            if isinstance(value, Path):
+                parsed[key] = str(value)
+
+        return parsed
+
     def mongo(self, **kwargs):
         exclude_unset = kwargs.pop("exclude_unset", False)
         by_alias = kwargs.pop("by_alias", True)
@@ -173,9 +187,25 @@ class MongoModel(BaseModel):
             **kwargs,
         )
 
-        # Mongo uses `_id` as default key. We should stick to that as well.
-        if "_id" not in parsed and "id" in parsed:
-            parsed["_id"] = parsed.pop("id")
+        def convert_ids(obj):
+            if isinstance(obj, dict):
+                new_dict = {}
+                for key, value in obj.items():
+                    # Rename 'id' keys to '_id'
+                    new_key = "_id" if key == "id" else key
+
+                    # Convert PyObjectId to ObjectId and recurse
+                    if isinstance(value, PyObjectId):
+                        new_dict[new_key] = ObjectId(str(value))
+                    else:
+                        new_dict[new_key] = convert_ids(value)
+                return new_dict
+            elif isinstance(obj, list):
+                return [convert_ids(item) for item in obj]
+            else:
+                return obj
+
+        parsed = convert_ids(parsed)
 
         # Convert PosixPath to str
         for key, value in parsed.items():
