@@ -13,6 +13,9 @@ from depictio_models.models.users import Permission
 from depictio_models.models.base import MongoModel, PyObjectId
 from depictio_models.logging import logger
 
+DEPICTIO_CONTEXT = os.getenv("DEPICTIO_CONTEXT")
+logger.info(f"DEPICTIO_CONTEXT: {DEPICTIO_CONTEXT}")
+
 
 class WildcardRegex(WildcardRegexBase):
     value: str
@@ -103,13 +106,18 @@ class File(MongoModel):
 
     @field_validator("file_location")
     def validate_location(cls, value):
-        if not os.path.exists(value):
-            raise ValueError(f"The file '{value}' does not exist.")
-        if not os.path.isfile(value):
-            raise ValueError(f"'{value}' is not a file.")
-        if not os.access(value, os.R_OK):
-            raise ValueError(f"'{value}' is not readable.")
-        return value
+        if DEPICTIO_CONTEXT.lower() == "cli":
+            if not os.path.exists(value):
+                raise ValueError(f"The file '{value}' does not exist.")
+            if not os.path.isfile(value):
+                raise ValueError(f"'{value}' is not a file.")
+            if not os.access(value, os.R_OK):
+                raise ValueError(f"'{value}' is not readable.")
+            return value
+        else:
+            if not value:
+                raise ValueError("File location cannot be empty")
+            return value
 
     # TODO: Implement file hashing to ensure file integrity
     # @field_validator("file_hash")
