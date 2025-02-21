@@ -31,6 +31,7 @@ class Token(MongoModel):
 # User management #
 ###################
 
+
 class Group(MongoModel):
     name: str
 
@@ -39,8 +40,6 @@ class UserBase(MongoModel):
     email: EmailStr
     is_admin: bool = False
     groups: List[Group]
-
-
 
 
 class User(UserBase):
@@ -53,7 +52,6 @@ class User(UserBase):
     last_login: Optional[str] = None
     registration_date: Optional[str] = None
     password: str
-
 
     @field_validator("password", mode="before")
     def hash_password(cls, v):
@@ -74,6 +72,11 @@ class User(UserBase):
             return all(getattr(self, field) == getattr(other, field) for field in self.model_fields.keys() if field not in ["user_id", "registration_time"])
         return False
 
+    def turn_to_userbase(self):
+        model_dump = self.model_dump()
+        userbase = UserBase(email=model_dump["email"], is_admin=model_dump["is_admin"], groups=model_dump["groups"])
+        return userbase
+
     # @model_validator(mode="before")
     # def add_admin_to_group(cls, values):
     #     if values.get("is_admin"):
@@ -84,12 +87,10 @@ class User(UserBase):
     #     return values
 
 
-
 class Permission(BaseModel):
     owners: List[UserBase] = []  # Default to an empty list
     editors: List[UserBase] = []  # Default to an empty list
     viewers: List[Union[UserBase, str]] = []  # Allow string wildcard "*" in viewers
-
 
     def dict(self, **kwargs):
         # Generate list of owner and viewer dictionaries
@@ -103,13 +104,12 @@ class Permission(BaseModel):
     def convert_list_to_userbase(cls, v):
         if not isinstance(v, list):
             raise ValueError(f"Expected a list, got {type(v)}")
-        
+
         result = []
-        logger.debug(f"Converting list to UserBase: {v}")   
+        logger.debug(f"Converting list to UserBase: {v}")
         for item in v:
             logger.debug(f"Converting {item} to UserBase")
             if isinstance(item, dict):
-
                 # keep only id, email, is_admin, groups
                 item = {key: value for key, value in item.items() if key in ["id", "email", "is_admin", "groups"]}
                 logger.debug(f"Filtered dictionary: {item}")

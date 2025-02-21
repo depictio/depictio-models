@@ -13,11 +13,9 @@ from pydantic import (
 from depictio_models.models.base import MongoModel, PyObjectId
 from depictio_models.models.data_collections_types.jbrowse import DCJBrowse2Config
 from depictio_models.models.data_collections_types.table import DCTableConfig
-
+from depictio_models.config import DEPICTIO_CONTEXT
 from depictio_models.logging import logger
 
-DEPICTIO_CONTEXT = os.getenv("DEPICTIO_CONTEXT")
-logger.info(f"DEPICTIO_CONTEXT: {DEPICTIO_CONTEXT}")
 
 
 class WildcardRegexBase(BaseModel):

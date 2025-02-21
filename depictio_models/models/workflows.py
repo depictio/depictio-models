@@ -13,10 +13,9 @@ from depictio_models.models.files import File
 from depictio_models.models.base import DirectoryPath, MongoModel, PyObjectId
 from depictio_models.models.data_collections import DataCollection
 from depictio_models.logging import logger
+from depictio_models.models.users import Permission
+from depictio_models.config import DEPICTIO_CONTEXT
 
-
-DEPICTIO_CONTEXT = os.getenv("DEPICTIO_CONTEXT")
-logger.info(f"DEPICTIO_CONTEXT: {DEPICTIO_CONTEXT}")
 
 
 class WorkflowDataLocation(MongoModel):
@@ -60,8 +59,6 @@ class WorkflowDataLocation(MongoModel):
     def validate_regex(cls, values):
         # only if mode is 'sequencing-runs' - check mode first
         if values["structure"] == "sequencing-runs":
-            logger.warning("DEPICTIO CONTEXT: %s", DEPICTIO_CONTEXT)
-            logger.warning(f"Values: {values}")
             if not values["runs_regex"]:
                 raise ValueError("runs_regex is required when mode is 'sequencing-runs'")
             # just check if the regex is valid
@@ -96,6 +93,7 @@ class WorkflowRun(MongoModel):
     registration_time: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     run_hash: str = None
     scan_results: Optional[List[WorkflowRunScan]] = []
+    permissions: Permission
 
     # @field_validator("workflow_config_id", mode="before")
     # def validate_workflow_config(cls, value):

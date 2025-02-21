@@ -12,9 +12,7 @@ from depictio_models.models.data_collections import DataCollection, WildcardRege
 from depictio_models.models.users import Permission
 from depictio_models.models.base import MongoModel, PyObjectId
 from depictio_models.logging import logger
-
-DEPICTIO_CONTEXT = os.getenv("DEPICTIO_CONTEXT")
-logger.info(f"DEPICTIO_CONTEXT: {DEPICTIO_CONTEXT}")
+from depictio_models.config import DEPICTIO_CONTEXT
 
 
 class WildcardRegex(WildcardRegexBase):
@@ -139,7 +137,6 @@ class FileScanResult(BaseModel):
 
     @field_validator("scan_result")
     def validate_scan_result(cls, value):
-        logger.warning(f"Validating scan result: {value}")
         if not isinstance(value, dict):
             raise ValueError("Scan result must be a dictionary")
 

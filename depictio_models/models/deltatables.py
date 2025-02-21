@@ -4,6 +4,7 @@ from bson import ObjectId
 from pydantic import (
     BaseModel,
     field_validator,
+    model_validator,
 )
 from depictio_models.models.users import UserBase
 from depictio_models.models.base import MongoModel, PyObjectId
@@ -78,6 +79,8 @@ class DeltaTableQuery(MongoModel):
     limit: Optional[int] = None
     offset: Optional[int] = None
 
+class Test(BaseModel):
+    test: str
 
 class DeltaTableAggregated(MongoModel):
     # id: Optional[PyObjectId] = None
@@ -85,25 +88,24 @@ class DeltaTableAggregated(MongoModel):
     delta_table_location: str
     aggregation: List[Aggregation] = []
 
-    # class Config:
-    #     arbitrary_types_allowed = True
-    #     json_encoders = {
-    #         ObjectId: lambda oid: str(oid),  # or `str` for simplicity
-    #     }
+    # def __eq__(self, other):
+    #     if isinstance(other, DeltaTableAggregated):
+    #         return all(getattr(self, field) == getattr(other, field) for field in self.model_fields.keys() if field not in ["id"])
+    #     return NotImplemented
 
-    def __eq__(self, other):
-        if isinstance(other, DeltaTableAggregated):
-            return all(getattr(self, field) == getattr(other, field) for field in self.__fields__.keys() if field not in ["id"])
-        return NotImplemented
+    # @model_validator(mode="before")
+    # def validate_delta_table_location(cls, v):
+    #     """
+    #     Validate the delta_table_location field to ensure it starts with 's3://' and ends with the data_collection_id.
+    #     """
+    #     # check if v starts with 's3://' and ends with the data_collection_id
+    #     if not v["delta_table_location"].startswith("s3://"):
+    #         raise ValueError("delta_table_location must start with 's3://'")
+    #     if not v["delta_table_location"].endswith(str(v["data_collection_id"])):
+    #         raise ValueError("delta_table_location must end with the data_collection_id")
 
-    # @field_validator("aggregation")
-    # def validate_aggregation(cls, value):
-    #     if not isinstance(value, list):
-    #         raise ValueError("aggregation must be a list")
-    #     if len(value) > 0:
-    #         for aggregation in value:
-    #             if not isinstance(aggregation, Aggregation):
-    #                 raise ValueError("aggregation Aggregation be a list of FilesAggregation")
-    #     elif len(value) == 0:
-    #         raise ValueError("No aggregation found")
-    #     return value
+
+class UpsertDeltaTableAggregated(BaseModel):
+    data_collection_id: PyObjectId
+    delta_table_location: str
+    update: bool = False

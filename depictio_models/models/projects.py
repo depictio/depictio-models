@@ -11,6 +11,7 @@ from depictio_models.models.users import Permission
 from depictio_models.models.workflows import Workflow
 from depictio_models.models.base import MongoModel, convert_objectid_to_str
 from depictio_models.logging import logger
+from depictio_models.config import DEPICTIO_CONTEXT
 
 
 class Project(MongoModel):
@@ -31,8 +32,6 @@ class Project(MongoModel):
         if not v:
             raise ValueError("Project name cannot be empty")
         return v
-
-
 
     @model_validator(mode="before")
     def compute_hash(cls, values: dict) -> dict:
@@ -62,10 +61,15 @@ class Project(MongoModel):
     @field_validator("yaml_config_path")
     @classmethod
     def validate_yaml_config_path(cls, v):
-        # Check if looks like a valid path but do not check if it exists
-        if not os.path.isabs(v):
-            raise ValueError("Path must be absolute")
-        return v
+        if DEPICTIO_CONTEXT.lower() == "cli":
+            # Check if looks like a valid path but do not check if it exists
+            if not os.path.isabs(v):
+                raise ValueError("Path must be absolute")
+            return v
+        else:
+            if not v:
+                raise ValueError("Path cannot be empty")
+            return v
 
     @field_validator("data_management_platform_project_url")
     @classmethod
