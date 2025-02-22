@@ -4,7 +4,7 @@ from pathlib import Path
 from bson import ObjectId
 from depictio_models.models.base import convert_objectid_to_str
 
-def test_convert_dict():
+def test_convert_dict()):
     input_data = {
         "id": ObjectId("507f1f77bcf86cd799439011"),
         "name": "test",
