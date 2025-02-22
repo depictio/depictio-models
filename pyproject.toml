@@ -1,6 +1,6 @@
 [project]
 name = "depictio-models"
-version = "0.3.0"  # Update manually or automate this if desired
+version = "0.0.3"  # Update manually or automate this if desired
 description = "Shared models for depictio-cli and depictio deployment"
 readme = "README.md"
 requires-python = ">=3.8"
