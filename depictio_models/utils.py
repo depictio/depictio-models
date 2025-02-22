@@ -16,7 +16,7 @@ def convert_model_to_dict(model: BaseModel) -> Dict:
     """
     Convert a Pydantic model to a dictionary.
     """
-    return convert_objectid_to_str(model.model_dump()) # type: ignore[no-any-return]
+    return convert_objectid_to_str(model.model_dump())  # type: ignore[no-any-return]
 
 
 @validate_call

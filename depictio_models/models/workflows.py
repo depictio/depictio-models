@@ -3,12 +3,7 @@ import os
 from pathlib import Path
 from typing import Dict, List, Optional
 import re
-from pydantic import (
-    BaseModel,
-    Field,
-    field_validator,
-    model_validator,
-)
+from pydantic import BaseModel, Field, field_validator, model_validator
 from depictio_models.models.base import DirectoryPath, MongoModel, PyObjectId
 from depictio_models.models.data_collections import DataCollection
 from depictio_models.logging import logger
@@ -88,24 +83,15 @@ class WorkflowRun(MongoModel):
     run_location: str
     creation_time: str
     last_modification_time: str
-    # execution_profile: Optional[Dict]
-    # generate default value for registration_time as current time and format as string
     registration_time: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     run_hash: str = ""
     scan_results: Optional[List[WorkflowRunScan]] = []
     permissions: Permission
 
-    # @field_validator("workflow_config_id", mode="before")
-    # def validate_workflow_config(cls, value):
-    #     # if not isinstance(value, PyObjectId):
-    #     #     raise ValueError("workflow_config_id must be a PyObjectId")
-    #     return value
-
     @field_validator("run_location", mode="after")
     def validate_and_recast_parent_runs_location(cls, value):
         if DEPICTIO_CONTEXT == "CLI":
             # Recast to List[DirectoryPath] and validate
-
             env_var_pattern = re.compile(r"\{([A-Z0-9_]+)\}")
 
             expanded_paths = []
@@ -135,19 +121,10 @@ class WorkflowRun(MongoModel):
         if len(value) == 0 or len(value) == 64:
             return value
 
-    # @model_validator(mode="before")
-    # def set_default_id(cls, values):
-    #     if values is None or "id" not in values or values["id"] is None:
-    #         return values  # Ensure we don't proceed if values is None
-    #     values["id"] = PyObjectId()
-    #     return values
-
     @field_validator("files_id", mode="before")
     def validate_files(cls, value):
         if not isinstance(value, list):
             raise ValueError("files must be a list")
-        # if not all(isinstance(file, PyObjectId) for file in value):
-        #     raise ValueError("files must be a list of PyObjectId")
         return value
 
     @field_validator("workflow_config_id", mode="before")
@@ -268,23 +245,6 @@ class Workflow(MongoModel):
             raise ValueError("version must be a string")
         return value
 
-    # @field_validator("description", mode="before")
-    # def parse_description(cls, value):
-    #     """
-    #     Automatically convert a string into a Description object during validation.
-    #     """
-    #     logger.info(f"Value: {value}")
-    #     logger.info(f"Type: {type(value)}")
-    #     if not value:
-    #         return None
-    #     # if isinstance(value, dict):
-    #     #     return Description(**value)
-    #     if isinstance(value, str):
-    #         return Description(description=value)
-    #     if isinstance(value, Description):
-    #         return value
-    #     raise ValueError("Invalid type for description, expected str or Description.")
-
     @model_validator(mode="before")
     @classmethod
     def generate_workflow_tag(cls, values):
@@ -298,18 +258,6 @@ class Workflow(MongoModel):
             if catalog_name == "nf-core":
                 values["workflow_tag"] = f"{catalog_name}/{name}"
         return values
-
-    # @model_validator(mode="before")
-    # def compute_and_assign_hash(cls, values):
-    #     # Copy the values to avoid mutating the input directly
-    #     values_copy = values.copy()
-    #     # Remove the hash field to avoid including it in the hash computation
-    #     values_copy.pop("hash", None)
-    #     # Compute the hash of the values
-    #     computed_hash = HashModel.compute_hash(values_copy)
-    #     # Assign the computed hash directly as a string
-    #     values["hash"] = computed_hash
-    #     return values
 
     def __eq__(self, other):
         if isinstance(other, Workflow):
@@ -338,12 +286,6 @@ class Workflow(MongoModel):
             raise ValueError("Invalid repository URL")
         return value
 
-    # @field_validator("id", mode="before")
-    # def validate_id(cls, id):
-    #     if not id:
-    #         raise ValueError("id is required")
-    #     return id
-
     @model_validator(mode="before")
     def set_workflow_tag(cls, values):
         # print(f"Received values: {values}")
@@ -353,23 +295,6 @@ class Workflow(MongoModel):
         if engine and name:
             values["workflow_tag"] = f"{engine}/{name}"
         return values
-
-    # @field_validator("description")
-    # def sanitize_description(cls, value):
-    #     """
-    #     Sanitizes the input to ensure it is plain text and neutralizes any code.
-    #     Converts special characters to their HTML-safe equivalents to neutralize code execution.
-    #     """
-    #     # Convert special characters to HTML-safe equivalents
-    #     neutralized = html.escape(value)
-
-    #     # Sanitize the input to strip all HTML tags or attributes
-    #     sanitized = bleach.clean(neutralized, tags=[], attributes={}, strip=True)
-
-    #     if len(sanitized) > 1000:
-    #         raise ValueError("Description must be less than 1000 characters.")
-
-    #     return sanitized
 
     @field_validator("data_collections", mode="before")
     def validate_data_collections(cls, value):
@@ -382,13 +307,3 @@ class Workflow(MongoModel):
         if not isinstance(value, dict):
             raise ValueError("runs must be a dictionary")
         return value
-
-    # @field_validator("permissions", mode="before")
-    # def set_default_permissions(cls, value, values):
-    #     if not value:
-    #         # Here we initialize the owners to include the creator by default.
-    #         # This assumes that `creator_id` or a similar field exists in the `Workflow` model.
-    #         workflow_creator = values.get("creator_id")
-    #         if workflow_creator:
-    #             return Permission(owners={workflow_creator}, viewers=set())
-    #     return value

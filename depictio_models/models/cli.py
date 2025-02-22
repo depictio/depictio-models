@@ -64,11 +64,6 @@ class UserCLIConfig(BaseModel):
     def validate_id(cls, v):
         return str(v)
 
-    # @field_validator("groups")
-    # # turn the groups into a list of strings (group ids)
-    # def validate_groups(cls, v):
-    #     return [{"id": str(group.id), "name": group.name} for group in v]
-
     @field_validator("email")
     def validate_email(cls, v):
         if not v:

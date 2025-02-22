@@ -1,12 +1,40 @@
 import pytest
 from pydantic import BaseModel
-from depictio_models.utils import validate_model_config
+from depictio_models.utils import convert_model_to_dict, validate_model_config
+from bson import ObjectId
 
 
 # Define a Pydantic model for testing purposes
 class TestModel(BaseModel):
     key1: str
     key2: int
+
+
+class DummyModel(BaseModel):
+    id: ObjectId
+    name: str
+    
+    class Config:
+        arbitrary_types_allowed = True
+
+
+def test_convert_model_to_dict():
+    # Create a dummy ObjectId and instantiate the dummy model.
+    dummy_id = ObjectId("507f1f77bcf86cd799439011")
+    model = DummyModel(name="test", id=dummy_id)
+
+    # Convert the model to a dictionary.
+    result = convert_model_to_dict(model)
+
+    # Assert that the result is a dictionary.
+    assert isinstance(result, dict)
+
+    # Assert that the 'id' field has been converted to a string.
+    assert isinstance(result["id"], str)
+    assert result["id"] == str(dummy_id)
+
+    # Assert that the 'name' field remains unchanged.
+    assert result["name"] == "test"
 
 
 # Test case for validating a correct configuration

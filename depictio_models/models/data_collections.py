@@ -1,11 +1,7 @@
 from pathlib import Path
 from typing import List, Optional, Union
 import re
-from pydantic import (
-    BaseModel,
-    field_validator,
-    model_validator,
-)
+from pydantic import BaseModel, field_validator, model_validator
 
 from depictio_models.models.base import MongoModel
 from depictio_models.models.data_collections_types.jbrowse import DCJBrowse2Config
@@ -42,13 +38,6 @@ class Regex(BaseModel):
             return v
         except re.error:
             raise ValueError("Invalid regex pattern")
-
-    # @field_validator("type")
-    # def validate_type(cls, v):
-    #     allowed_values = ["file-based", "path-based"]
-    #     if v.lower() not in allowed_values:
-    #         raise ValueError(f"type must be one of {allowed_values}")
-    #     return v
 
 
 class ScanRecursive(BaseModel):
@@ -99,8 +88,6 @@ class TableJoinConfig(BaseModel):
     on_columns: List[str]
     how: Optional[str]
     with_dc: List[str]
-    # lsuffix: str
-    # rsuffix: str
 
     class Config:
         extra = "forbid"  # Reject unexpected fields
@@ -140,7 +127,6 @@ class DataCollectionConfig(MongoModel):
 
 class DataCollection(MongoModel):
     data_collection_tag: str
-    # description: Optional[Description] = None
     config: DataCollectionConfig
 
     def __eq__(self, other):
@@ -151,20 +137,3 @@ class DataCollection(MongoModel):
                 if field not in ["id", "registration_time"]
             )
         return NotImplemented
-
-    # @field_validator("description", mode="before")
-    # def parse_description(cls, value):
-    #     """
-    #     Automatically convert a string into a Description object during validation.
-    #     """
-    #     logger.info(f"Value: {value}")
-    #     logger.info(f"Type: {type(value)}")
-    #     if not value:
-    #         return None
-    #     # if isinstance(value, dict):
-    #     #     return Description(**value)
-    #     if isinstance(value, str):
-    #         return Description(description=value)
-    #     if isinstance(value, Description):
-    #         return value
-    #     raise ValueError("Invalid type for description, expected str or Description.")

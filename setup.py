@@ -23,7 +23,6 @@ setup(
         "bleach",
         "bson",
         "colorlog",
-        "typeguard",
     ],
     python_requires=">=3.8",
     classifiers=[

@@ -12,10 +12,6 @@ from depictio_models.models.base import MongoModel
 from depictio_models.logging import logger
 
 
-##################
-# Authentication #
-##################
-
 
 class Token(MongoModel):
     access_token: str
@@ -23,13 +19,7 @@ class Token(MongoModel):
     expire_datetime: str
     name: Optional[str] = None
     hash: Optional[str] = None
-    # scope: Optional[str] = None
-    # user_id: PyObjectId
 
-
-###################
-# User management #
-###################
 
 
 class Group(MongoModel):
@@ -43,8 +33,6 @@ class UserBase(MongoModel):
 
 
 class User(UserBase):
-    # user_id: Optional[PyObjectId] = None
-    # username: str
     tokens: List[Token] = Field(default_factory=list)
     current_access_token: Optional[str] = None
     is_active: bool = True
@@ -82,15 +70,6 @@ class User(UserBase):
             email=model_dump["email"], is_admin=model_dump["is_admin"], groups=model_dump["groups"]
         )
         return userbase
-
-    # @model_validator(mode="before")
-    # def add_admin_to_group(cls, values):
-    #     if values.get("is_admin"):
-    #         group_ids = values.get("groups", [])
-    #         if "admin" not in group_ids:
-    #             group_ids.append("admin")
-    #         values["groups"] = group_ids
-    #     return values
 
 
 class Permission(BaseModel):

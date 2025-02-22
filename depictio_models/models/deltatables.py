@@ -1,9 +1,6 @@
 from datetime import datetime
 from typing import Dict, List, Optional, Union
-from pydantic import (
-    BaseModel,
-    field_validator,
-)
+from pydantic import BaseModel, field_validator
 from depictio_models.models.users import UserBase
 from depictio_models.models.base import MongoModel, PyObjectId
 
@@ -43,17 +40,6 @@ class Aggregation(MongoModel):
     aggregation_hash: str
     aggregation_columns_specs: List[DeltaTableColumn] = []
 
-    # @field_validator("aggregation_time", pre=True, always=True)
-    # def validate_creation_time(cls, value):
-    #     if type(value) is not datetime:
-    #         try:
-    #             dt = datetime.fromisoformat(value)
-    #             return dt.strftime("%Y-%m-%d %H:%M:%S")
-    #         except ValueError:
-    #             raise ValueError("Invalid datetime format")
-    #     else:
-    #         return value.strftime("%Y-%m-%d %H:%M:%S")
-
     @field_validator("aggregation_version")
     def validate_version(cls, value):
         if not isinstance(value, int):
@@ -83,26 +69,9 @@ class Test(BaseModel):
 
 
 class DeltaTableAggregated(MongoModel):
-    # id: Optional[PyObjectId] = None
     data_collection_id: PyObjectId
     delta_table_location: str
     aggregation: List[Aggregation] = []
-
-    # def __eq__(self, other):
-    #     if isinstance(other, DeltaTableAggregated):
-    #         return all(getattr(self, field) == getattr(other, field) for field in self.model_fields.keys() if field not in ["id"])
-    #     return NotImplemented
-
-    # @model_validator(mode="before")
-    # def validate_delta_table_location(cls, v):
-    #     """
-    #     Validate the delta_table_location field to ensure it starts with 's3://' and ends with the data_collection_id.
-    #     """
-    #     # check if v starts with 's3://' and ends with the data_collection_id
-    #     if not v["delta_table_location"].startswith("s3://"):
-    #         raise ValueError("delta_table_location must start with 's3://'")
-    #     if not v["delta_table_location"].endswith(str(v["data_collection_id"])):
-    #         raise ValueError("delta_table_location must end with the data_collection_id")
 
 
 class UpsertDeltaTableAggregated(BaseModel):
