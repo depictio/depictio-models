@@ -12,14 +12,12 @@ from depictio_models.models.base import MongoModel
 from depictio_models.logging import logger
 
 
-
 class Token(MongoModel):
     access_token: str
     token_lifetime: str = "short-lived"
     expire_datetime: str
     name: Optional[str] = None
     hash: Optional[str] = None
-
 
 
 class Group(MongoModel):

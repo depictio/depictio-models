@@ -13,7 +13,7 @@ class TestModel(BaseModel):
 class DummyModel(BaseModel):
     id: ObjectId
     name: str
-    
+
     class Config:
         arbitrary_types_allowed = True
 

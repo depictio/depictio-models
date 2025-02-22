@@ -75,7 +75,6 @@ class MongoModel(BaseModel):
     flexible_metadata: Optional[dict] = None
     hash: Optional[str] = None
 
-
     class Config:
         extra = "forbid"
         # allow_population_by_field_name = True
@@ -167,10 +166,10 @@ class MongoModel(BaseModel):
         hash_value = data.pop("hash", None)
         instance = cls(**data)
         if hash_value is not None:
-            setattr(instance, 'hash', hash_value)
+            setattr(instance, "hash", hash_value)
         else:
             # Compute hash if not present
-            setattr(instance, 'hash', HashModel.compute_hash(data))
+            setattr(instance, "hash", HashModel.compute_hash(data))
         return instance
 
     def to_json(self, **kwargs):

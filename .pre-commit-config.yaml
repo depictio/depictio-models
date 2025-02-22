@@ -1,11 +1,13 @@
 repos:
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.0.241  # Use the latest stable version if available
+    rev: v0.9.7  # Use the latest stable version if available
     hooks:
       - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.8.0  # Updated to latest stable version
+    rev: v1.15.0  # Updated to latest stable version
     hooks:
       - id: mypy
         args: ["--install-types", "--non-interactive"]

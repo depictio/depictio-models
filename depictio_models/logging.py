@@ -29,7 +29,7 @@ def setup_logging(verbose: bool = False, verbose_level: str = "INFO") -> logging
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     if verbose:
-        level_name = logging.getLevelNamesMapping().get(verbose_level, verbose_level)
+        level_name = logging.getLevelNamesMapping().get(verbose_level, verbose_level)  # type: ignore[attr-defined]
         logger.setLevel(level_name)
     else:
         logger.setLevel(logging.WARNING)
