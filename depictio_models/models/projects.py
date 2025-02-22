@@ -1,16 +1,14 @@
 from datetime import datetime
 import os
 import re
-import bleach
-import html
 from typing import List, Optional
 from pydantic import field_validator, model_validator
-import hashlib, json
+import hashlib
+import json
 
 from depictio_models.models.users import Permission
 from depictio_models.models.workflows import Workflow
 from depictio_models.models.base import MongoModel, convert_objectid_to_str
-from depictio_models.logging import logger
 from depictio_models.config import DEPICTIO_CONTEXT
 
 
@@ -45,7 +43,9 @@ class Project(MongoModel):
             for data_collection in workflow["data_collections"]:
                 data_collection.pop("registration_time", None)
 
-        hash_str = hashlib.md5(json.dumps(convert_objectid_to_str(values), sort_keys=True).encode()).hexdigest()
+        hash_str = hashlib.md5(
+            json.dumps(convert_objectid_to_str(values), sort_keys=True).encode()
+        ).hexdigest()
         values["hash"] = hash_str
         return values
 

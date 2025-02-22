@@ -1,9 +1,11 @@
 from setuptools import setup, find_packages
 
+
 # Load the version from the shared VERSION file
 def read_version():
     with open("VERSION", "r") as version_file:
         return version_file.read().strip()
+
 
 setup(
     name="depictio-models",

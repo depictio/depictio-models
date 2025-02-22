@@ -1,12 +1,13 @@
-import os
 import pytest
-from pydantic import BaseModel, ValidationError
-from depictio_models.utils import validate_model_config, substitute_env_vars
+from pydantic import BaseModel
+from depictio_models.utils import validate_model_config
+
 
 # Define a Pydantic model for testing purposes
 class TestModel(BaseModel):
     key1: str
     key2: int
+
 
 # Test case for validating a correct configuration
 def test_validate_model_config_valid():
@@ -16,13 +17,11 @@ def test_validate_model_config_valid():
     Asserts:
         The key1 and key2 in the result configuration match the input values.
     """
-    config = {
-        "key1": "value1",
-        "key2": 123
-    }
+    config = {"key1": "value1", "key2": 123}
     result = validate_model_config(config, TestModel)
     assert result.key1 == "value1"
     assert result.key2 == 123
+
 
 # Test case for validating a configuration with an invalid type
 def test_validate_model_config_invalid_type():
@@ -32,12 +31,10 @@ def test_validate_model_config_invalid_type():
     Asserts:
         A ValueError is raised due to the invalid type.
     """
-    config = {
-        "key1": "value1",
-        "key2": "not_an_int"
-    }
+    config = {"key1": "value1", "key2": "not_an_int"}
     with pytest.raises(ValueError):
         validate_model_config(config, TestModel)
+
 
 # Test case for validating a configuration with a missing key
 def test_validate_model_config_missing_key():
@@ -47,11 +44,10 @@ def test_validate_model_config_missing_key():
     Asserts:
         A ValueError is raised due to the missing key.
     """
-    config = {
-        "key1": "value1"
-    }
+    config = {"key1": "value1"}
     with pytest.raises(ValueError):
         validate_model_config(config, TestModel)
+
 
 # Test case for validating a configuration with environment variables
 def test_validate_model_config_with_env_vars(monkeypatch):
@@ -71,13 +67,11 @@ def test_validate_model_config_with_env_vars(monkeypatch):
         The key2 in the result configuration remains unchanged.
     """
     monkeypatch.setenv("TEST_ENV_VAR", "env_value")
-    config = {
-        "key1": "${TEST_ENV_VAR}",
-        "key2": 123
-    }
+    config = {"key1": "${TEST_ENV_VAR}", "key2": 123}
     result = validate_model_config(config, TestModel)
     assert result.key1 == "env_value"
     assert result.key2 == 123
+
 
 # Test case for validating a configuration with an invalid config type
 def test_validate_model_config_invalid_config_type():

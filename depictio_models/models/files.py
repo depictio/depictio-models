@@ -1,17 +1,14 @@
 from datetime import datetime
 import os
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 from pydantic import (
     BaseModel,
-    Field,
     FilePath,
     field_validator,
-    model_validator,
 )
-from depictio_models.models.data_collections import DataCollection, WildcardRegexBase
+from depictio_models.models.data_collections import WildcardRegexBase
 from depictio_models.models.users import Permission
 from depictio_models.models.base import MongoModel, PyObjectId
-from depictio_models.logging import logger
 from depictio_models.config import DEPICTIO_CONTEXT
 
 

@@ -24,7 +24,9 @@ class TokenData(BaseModel):
         # Basic format check for JWT: should have three dot-separated parts
         parts = v.split(".")
         if len(parts) != 3:
-            raise ValueError("Access token is not a valid JWT format (should contain three parts separated by dots)")
+            raise ValueError(
+                "Access token is not a valid JWT format (should contain three parts separated by dots)"
+            )
 
         # Validate that each part appears to be a Base64URL encoded string
         base64url_pattern = re.compile(r"^[A-Za-z0-9_-]+$")
@@ -83,7 +85,6 @@ class CLIConfig(BaseModel):
     api_base_url: str
     user: UserCLIConfig
     s3_storage: MinIOS3Config
-
 
     class Config:
         extra = "forbid"  # Reject unexpected fields

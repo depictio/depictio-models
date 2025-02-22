@@ -1,7 +1,6 @@
 import os
 import yaml
-from typing import Dict, Type
-from typeguard import typechecked
+from typing import Any, Dict, Type
 from pydantic import BaseModel, ValidationError, validate_call
 
 from depictio_models.logging import logger
@@ -11,42 +10,37 @@ from depictio_models.models.base import convert_objectid_to_str
 def get_depictio_context():
     return os.getenv("DEPICTIO_CONTEXT")
 
+
 @validate_call
 def convert_model_to_dict(model: BaseModel) -> Dict:
     """
     Convert a Pydantic model to a dictionary.
     """
-    return convert_objectid_to_str(model.model_dump())
+    return convert_objectid_to_str(model.model_dump()) # type: ignore[no-any-return]
+
 
 @validate_call
-def get_config(filename: str) -> dict:
+def get_config(filename: str) -> Dict:
     """
     Get the config file.
     """
-    logger.debug("Loading utils.py")
-
     if not filename.endswith(".yaml"):
         raise ValueError("Invalid config file. Must be a YAML file.")
     if not os.path.exists(filename):
         raise ValueError(f"The file '{filename}' does not exist.")
     if not os.path.isfile(filename):
         raise ValueError(f"'{filename}' is not a file.")
-    else:
-        with open(filename, "r") as f:
-            yaml_data = yaml.safe_load(f)
-        return yaml_data
+    with open(filename, "r") as f:
+        yaml_data = yaml.safe_load(f)
+    if not isinstance(yaml_data, dict):
+        raise ValueError("Invalid config file: expected a dictionary.")
+    return yaml_data
 
-def substitute_env_vars(config):
+
+def substitute_env_vars(config: Any) -> Any:
     """
     Recursively substitute environment variables in the configuration dictionary.
-
-    Args:
-        config (Dict): Configuration dictionary with potential environment variable placeholders.
-
-    Returns:
-        Dict: Configuration dictionary with substituted environment variables.
     """
-    # Recursively handle environment variables substitution in nested dictionaries and lists
     if isinstance(config, dict):
         return {k: substitute_env_vars(v) for k, v in config.items()}
     elif isinstance(config, list):
@@ -56,6 +50,7 @@ def substitute_env_vars(config):
         return os.path.expandvars(config)
     else:
         return config
+
 
 @validate_call
 def validate_model_config(config: dict, pydantic_model: Type[BaseModel]) -> BaseModel:

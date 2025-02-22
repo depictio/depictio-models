@@ -41,11 +41,18 @@ class CustomJSONEncoder(json.JSONEncoder):
 
 class PyObjectId(ObjectId):
     @classmethod
-    def __get_pydantic_core_schema__(cls, source: type, handler: GetCoreSchemaHandler) -> core_schema.CoreSchema:
+    def __get_pydantic_core_schema__(
+        cls, source: type, handler: GetCoreSchemaHandler
+    ) -> core_schema.CoreSchema:
         """
         Defines the core schema for PyObjectId.
         """
-        return core_schema.no_info_after_validator_function(cls.validate, core_schema.union_schema([core_schema.str_schema(), core_schema.is_instance_schema(ObjectId)]))
+        return core_schema.no_info_after_validator_function(
+            cls.validate,
+            core_schema.union_schema(
+                [core_schema.str_schema(), core_schema.is_instance_schema(ObjectId)]
+            ),
+        )
 
     @classmethod
     def validate(cls, v):
@@ -66,6 +73,8 @@ class MongoModel(BaseModel):
     id: PyObjectId = Field(default=PyObjectId())
     description: Optional[str] = None
     flexible_metadata: Optional[dict] = None
+    hash: Optional[str] = None
+
 
     class Config:
         extra = "forbid"
@@ -155,10 +164,13 @@ class MongoModel(BaseModel):
 
         data = convert_ids(data)
         # Ensure 'hash' is explicitly retained
-        hash_value = data.get("hash")
+        hash_value = data.pop("hash", None)
         instance = cls(**data)
         if hash_value is not None:
-            instance.hash = hash_value
+            setattr(instance, 'hash', hash_value)
+        else:
+            # Compute hash if not present
+            setattr(instance, 'hash', HashModel.compute_hash(data))
         return instance
 
     def to_json(self, **kwargs):
@@ -259,15 +271,18 @@ class DirectoryPath(BaseModel):
 
 
 class HashModel(BaseModel):
+    value: str  # Store the hash string
+
     @classmethod
     def __get_validators__(cls):
         yield cls.validate
 
     @classmethod
-    def validate(cls, value: str) -> str:
+    def validate(cls, value: str) -> "HashModel":
         if not re.match(r"^[a-fA-F0-9]{64}$", value):
             raise ValueError("Invalid hash")
-        return value
+        # Return an instance of HashModel
+        return cls(value=value)
 
     @classmethod
     def compute_hash(cls, value: dict) -> str:

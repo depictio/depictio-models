@@ -1,4 +1,4 @@
-from typing import List, Optional, Set, Union
+from typing import List, Optional, Union
 from bson import ObjectId
 from pydantic import (
     BaseModel,
@@ -8,7 +8,7 @@ from pydantic import (
     model_validator,
 )
 
-from depictio_models.models.base import MongoModel, PyObjectId
+from depictio_models.models.base import MongoModel
 from depictio_models.logging import logger
 
 
@@ -69,12 +69,18 @@ class User(UserBase):
     def __eq__(self, other):
         # Equality based on the unique user_id
         if isinstance(other, User):
-            return all(getattr(self, field) == getattr(other, field) for field in self.model_fields.keys() if field not in ["user_id", "registration_time"])
+            return all(
+                getattr(self, field) == getattr(other, field)
+                for field in self.model_fields.keys()
+                if field not in ["user_id", "registration_time"]
+            )
         return False
 
     def turn_to_userbase(self):
         model_dump = self.model_dump()
-        userbase = UserBase(email=model_dump["email"], is_admin=model_dump["is_admin"], groups=model_dump["groups"])
+        userbase = UserBase(
+            email=model_dump["email"], is_admin=model_dump["is_admin"], groups=model_dump["groups"]
+        )
         return userbase
 
     # @model_validator(mode="before")
@@ -96,7 +102,10 @@ class Permission(BaseModel):
         # Generate list of owner and viewer dictionaries
         owners_list = [owner.model_dump(**kwargs) for owner in self.owners]
         editors_list = [editor.model_dump(**kwargs) for editor in self.editors]
-        viewers_list = [viewer.model_dump(**kwargs) if isinstance(viewer, UserBase) else viewer for viewer in self.viewers]
+        viewers_list = [
+            viewer.model_dump(**kwargs) if isinstance(viewer, UserBase) else viewer
+            for viewer in self.viewers
+        ]
         return {"owners": owners_list, "editors": editors_list, "viewers": viewers_list}
 
     # Step 1: Convert lists to UserBase or validate items
@@ -111,7 +120,11 @@ class Permission(BaseModel):
             logger.debug(f"Converting {item} to UserBase")
             if isinstance(item, dict):
                 # keep only id, email, is_admin, groups
-                item = {key: value for key, value in item.items() if key in ["id", "email", "is_admin", "groups"]}
+                item = {
+                    key: value
+                    for key, value in item.items()
+                    if key in ["id", "email", "is_admin", "groups"]
+                }
                 logger.debug(f"Filtered dictionary: {item}")
 
                 result.append(UserBase(**item))  # Convert dictionary to UserBase
@@ -120,7 +133,9 @@ class Permission(BaseModel):
             elif isinstance(item, UserBase):
                 result.append(item)  # Already a UserBase instance
             else:
-                raise ValueError("Owners, editors, and viewers must be UserBase instances or valid types")
+                raise ValueError(
+                    "Owners, editors, and viewers must be UserBase instances or valid types"
+                )
         logger.debug(f"Converted list to UserBase: {result}")
         return result
 

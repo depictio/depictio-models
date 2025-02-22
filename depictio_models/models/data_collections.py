@@ -1,21 +1,15 @@
-import os
 from pathlib import Path
 from typing import List, Optional, Union
-import bleach
 import re
 from pydantic import (
     BaseModel,
-    Field,
     field_validator,
     model_validator,
 )
 
-from depictio_models.models.base import MongoModel, PyObjectId
+from depictio_models.models.base import MongoModel
 from depictio_models.models.data_collections_types.jbrowse import DCJBrowse2Config
 from depictio_models.models.data_collections_types.table import DCTableConfig
-from depictio_models.config import DEPICTIO_CONTEXT
-from depictio_models.logging import logger
-
 
 
 class WildcardRegexBase(BaseModel):
@@ -36,7 +30,6 @@ class WildcardRegexBase(BaseModel):
 
 class Regex(BaseModel):
     pattern: str
-    # type: str
     wildcards: Optional[List[WildcardRegexBase]] = None
 
     class Config:
@@ -91,7 +84,7 @@ class Scan(BaseModel):
         if v.lower() not in allowed_values:
             raise ValueError(f"mode must be one of {allowed_values}")
         return v
-    
+
     @model_validator(mode="before")
     def validate_join(cls, values):
         type_value = values.get("mode").lower()  # normalize to lowercase for comparison
@@ -150,12 +143,15 @@ class DataCollection(MongoModel):
     # description: Optional[Description] = None
     config: DataCollectionConfig
 
-
     def __eq__(self, other):
         if isinstance(other, DataCollection):
-            return all(getattr(self, field) == getattr(other, field) for field in self.model_fields.keys() if field not in ["id", "registration_time"])
+            return all(
+                getattr(self, field) == getattr(other, field)
+                for field in self.model_fields.keys()
+                if field not in ["id", "registration_time"]
+            )
         return NotImplemented
-    
+
     # @field_validator("description", mode="before")
     # def parse_description(cls, value):
     #     """
@@ -172,4 +168,3 @@ class DataCollection(MongoModel):
     #     if isinstance(value, Description):
     #         return value
     #     raise ValueError("Invalid type for description, expected str or Description.")
-

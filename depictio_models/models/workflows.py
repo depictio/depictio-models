@@ -9,13 +9,11 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-from depictio_models.models.files import File
 from depictio_models.models.base import DirectoryPath, MongoModel, PyObjectId
 from depictio_models.models.data_collections import DataCollection
 from depictio_models.logging import logger
 from depictio_models.models.users import Permission
 from depictio_models.config import DEPICTIO_CONTEXT
-
 
 
 class WorkflowDataLocation(MongoModel):
@@ -45,7 +43,9 @@ class WorkflowDataLocation(MongoModel):
                     logger.debug(f"Expanded path: {location.replace(f'{{{match}}}', env_value)}")
 
                     if not env_value:
-                        raise ValueError(f"Environment variable '{match}' is not set for path '{location}'.")
+                        raise ValueError(
+                            f"Environment variable '{match}' is not set for path '{location}'."
+                        )
                     # Replace the placeholder with the actual value
                     location = location.replace(f"{{{match}}}", env_value)
                 expanded_paths.append(location)
@@ -91,7 +91,7 @@ class WorkflowRun(MongoModel):
     # execution_profile: Optional[Dict]
     # generate default value for registration_time as current time and format as string
     registration_time: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    run_hash: str = None
+    run_hash: str = ""
     scan_results: Optional[List[WorkflowRunScan]] = []
     permissions: Permission
 
@@ -117,7 +117,9 @@ class WorkflowRun(MongoModel):
                 logger.debug(f"Expanded path: {location.replace(f'{{{match}}}', env_value)}")
 
                 if not env_value:
-                    raise ValueError(f"Environment variable '{match}' is not set for path '{location}'.")
+                    raise ValueError(
+                        f"Environment variable '{match}' is not set for path '{location}'."
+                    )
                 # Replace the placeholder with the actual value
                 location = location.replace(f"{{{match}}}", env_value)
             expanded_paths.append(location)
@@ -311,7 +313,11 @@ class Workflow(MongoModel):
 
     def __eq__(self, other):
         if isinstance(other, Workflow):
-            return all(getattr(self, field) == getattr(other, field) for field in self.model_fields.keys() if field not in ["id", "registration_time"])
+            return all(
+                getattr(self, field) == getattr(other, field)
+                for field in self.model_fields.keys()
+                if field not in ["id", "registration_time"]
+            )
         return NotImplemented
 
     @field_validator("name", mode="before")

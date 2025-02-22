@@ -4,5 +4,7 @@
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
-    "python.envFile": "/Users/tweber/Gits/workspaces/depictio/.env"
+    "python.envFile": "/Users/tweber/Gits/workspaces/depictio/.env",
+    "python.defaultInterpreterPath": ".venv/bin/python",
+    "ruff.lineLength": 100
 }

@@ -1,10 +1,8 @@
 from datetime import datetime
 from typing import Dict, List, Optional, Union
-from bson import ObjectId
 from pydantic import (
     BaseModel,
     field_validator,
-    model_validator,
 )
 from depictio_models.models.users import UserBase
 from depictio_models.models.base import MongoModel, PyObjectId
@@ -79,8 +77,10 @@ class DeltaTableQuery(MongoModel):
     limit: Optional[int] = None
     offset: Optional[int] = None
 
+
 class Test(BaseModel):
     test: str
+
 
 class DeltaTableAggregated(MongoModel):
     # id: Optional[PyObjectId] = None
