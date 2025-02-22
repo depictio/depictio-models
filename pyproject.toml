@@ -1,0 +1,22 @@
+[project]
+name = "depictio-models"
+version = "0.3.0"  # You can update this dynamically later if needed
+description = "Shared models for depictio-cli and depictio deployment"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { file = "LICENSE" }
+dependencies = []
+
+[tool.uv]
+# Regular dependencies: the local package in editable mode via file URL.
+dependencies = [
+  "depictio-models @ file://."
+]
+
+# Development dependencies
+dev-dependencies = [
+  "pre-commit",
+  "ruff",
+  "pytest",
+  "mypy"
+]
