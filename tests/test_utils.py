@@ -14,7 +14,7 @@ class DummyModel(BaseModel):
     id: ObjectId
     name: str
 
-    class Config:
+    class ConfigDict:
         arbitrary_types_allowed = True
 
 

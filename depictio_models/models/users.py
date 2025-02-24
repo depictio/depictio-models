@@ -45,7 +45,7 @@ class User(UserBase):
         if v.startswith("$2b$"):
             return v
 
-    class Config:
+    class ConfigDict:
         json_encoders = {ObjectId: lambda v: str(v)}
 
     def __hash__(self):

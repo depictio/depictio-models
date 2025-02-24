@@ -83,7 +83,7 @@ class MinIOS3Config(BaseModel):
     minio_root_user: str  # MinIO root username
     minio_root_password: str  # MinIO root password
 
-    class Config:
+    class ConfigDict:
         extra = "forbid"  # Reject any unexpected fields
 
     @field_validator("provider")

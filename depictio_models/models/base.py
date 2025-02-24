@@ -75,7 +75,7 @@ class MongoModel(BaseModel):
     flexible_metadata: Optional[dict] = None
     hash: Optional[str] = None
 
-    class Config:
+    class ConfigDict:
         extra = "forbid"
         # allow_population_by_field_name = True
         json_encoders = {

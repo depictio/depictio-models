@@ -13,7 +13,7 @@ class TokenData(BaseModel):
     access_token: str
     expire_datetime: str
 
-    class Config:
+    class ConfigDict:
         extra = "forbid"  # Reject unexpected fields
 
     @field_validator("access_token")
@@ -56,7 +56,7 @@ class UserCLIConfig(BaseModel):
     groups: List[Group]
     token: TokenData
 
-    class Config:
+    class ConfigDict:
         extra = "forbid"  # Reject unexpected fields
 
     @field_validator("id")
@@ -81,7 +81,7 @@ class CLIConfig(BaseModel):
     user: UserCLIConfig
     s3_storage: MinIOS3Config
 
-    class Config:
+    class ConfigDict:
         extra = "forbid"  # Reject unexpected fields
 
     @field_validator("api_base_url")
