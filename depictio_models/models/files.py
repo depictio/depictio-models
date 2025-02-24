@@ -98,7 +98,7 @@ class FileScanResult(BaseModel):
 
     class Config:
         extra = "forbid"
-        allow_population_by_field_name = False
+        populate_by_name = False
 
     @field_validator("scan_result")
     def validate_scan_result(cls, value):
