@@ -4,7 +4,7 @@ from colorlog import ColoredFormatter
 
 # Initialize logger without handlers
 logger = logging.getLogger("depictio-models")
-logger.propagate = False  # Prevent propagation to root logger
+# logger.propagate = False  # Prevent propagation to root logger
 
 
 def setup_logging(verbose: bool = False, verbose_level: str = "INFO") -> logging.Logger:

@@ -120,10 +120,8 @@ class MongoModel(BaseModel):
         # if isinstance(value, Description):
         #     value = value.description
 
-        logger.info(f"DEBUG - Description: {value}")
-
         if not value:
-            logger.info("No description provided.")
+            logger.debug("No description provided.")
             return None
 
         # Step 1: Convert special characters to their HTML-safe equivalents
@@ -168,9 +166,9 @@ class MongoModel(BaseModel):
         instance = cls(**data)
         if hash_value is not None:
             setattr(instance, "hash", hash_value)
-        else:
-            # Compute hash if not present
-            setattr(instance, "hash", HashModel.compute_hash(data))
+        # else:
+        # Compute hash if not present
+        # setattr(instance, "hash", HashModel.compute_hash(data))
         return instance
 
     def to_json(self, **kwargs):

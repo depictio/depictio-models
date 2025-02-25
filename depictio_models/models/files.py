@@ -1,6 +1,6 @@
 from datetime import datetime
 import os
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 from pydantic import BaseModel, FilePath, field_validator
 from depictio_models.models.data_collections import WildcardRegexBase
 from depictio_models.models.users import Permission
@@ -17,7 +17,7 @@ class File(MongoModel):
     filename: str
     creation_time: str
     modification_time: str
-    run_id: Optional[PyObjectId] = None
+    run_id: Optional[Union[PyObjectId, str]] = None
     data_collection_id: PyObjectId
     registration_time: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     file_hash: str
