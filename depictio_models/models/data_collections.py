@@ -6,6 +6,7 @@ from pydantic import BaseModel, field_validator, model_validator
 from depictio_models.models.base import MongoModel
 from depictio_models.models.data_collections_types.jbrowse import DCJBrowse2Config
 from depictio_models.models.data_collections_types.table import DCTableConfig
+from depictio_models.utils import get_depictio_context
 
 
 class WildcardRegexBase(BaseModel):
@@ -57,10 +58,17 @@ class ScanSingle(BaseModel):
 
     @field_validator("filename")
     def validate_filename(cls, v):
-        # validate filename & check if it exists
-        if not Path(v).exists():
-            raise ValueError(f"File {v} does not exist")
-        return v
+        DEPICTIO_CONTEXT = get_depictio_context()
+
+        if DEPICTIO_CONTEXT.lower() == "cli":
+            # validate filename & check if it exists
+            if not Path(v).exists():
+                raise ValueError(f"File {v} does not exist")
+            return v
+        else:
+            if not v:
+                raise ValueError("Filename cannot be empty")
+            return v
 
 
 class Scan(BaseModel):
