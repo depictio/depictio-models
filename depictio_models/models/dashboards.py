@@ -2,7 +2,7 @@ from typing import Dict, List, Optional
 from bson import ObjectId
 
 from depictio_models.models.users import Permission
-from depictio_models.models.base import MongoModel
+from depictio_models.models.base import MongoModel, PyObjectId
 
 
 class DashboardData(MongoModel):
@@ -21,6 +21,7 @@ class DashboardData(MongoModel):
     title: str
     permissions: Permission
     last_saved_ts: str = ""
+    project_id: PyObjectId
 
     class Config:
         arbitrary_types_allowed = True
