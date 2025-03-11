@@ -14,8 +14,7 @@ class DummyModel(BaseModel):
     id: ObjectId
     name: str
 
-    class ConfigDict:
-        arbitrary_types_allowed = True
+    model_config = {"arbitrary_types_allowed": True}
 
 
 def test_convert_model_to_dict():
