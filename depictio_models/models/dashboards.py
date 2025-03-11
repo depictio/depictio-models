@@ -26,6 +26,4 @@ class DashboardData(MongoModel):
 
     class Config:
         arbitrary_types_allowed = True
-        json_encoders = {
-            ObjectId: lambda oid: str(oid),  # or `str` for simplicity
-        }
+        json_encoders = {ObjectId: lambda oid: str(oid)}
