@@ -10,6 +10,7 @@ class DashboardData(MongoModel):
     version: int = 1
     tmp_children_data: Optional[List] = []
     stored_layout_data: Dict = {}
+    stored_children_data: List = []
     stored_metadata: List = []
     stored_edit_dashboard_mode_button: List = []
     buttons_data: Dict = {
