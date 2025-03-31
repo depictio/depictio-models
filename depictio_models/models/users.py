@@ -8,6 +8,7 @@ from pydantic import (
     model_validator,
 )
 
+
 from depictio_models.models.base import MongoModel
 from depictio_models.logging import logger
 
@@ -24,10 +25,22 @@ class Group(MongoModel):
     name: str
 
 
-class UserBase(MongoModel):
+class UserBaseGroupLess(MongoModel):
     email: EmailStr
     is_admin: bool = False
+
+
+class GroupWithUsers(MongoModel):
+    name: str
+    users: List[UserBaseGroupLess] = []
+
+
+class UserBase(UserBaseGroupLess):
     groups: List[Group]
+
+
+class GroupUI(Group):
+    users: List[UserBaseGroupLess] = []
 
 
 class User(UserBase):
