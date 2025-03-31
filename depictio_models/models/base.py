@@ -6,7 +6,14 @@ from pathlib import Path, PosixPath
 from typing import Optional
 import bleach
 from bson import ObjectId
-from pydantic import BaseModel, Field, GetCoreSchemaHandler, model_validator, field_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    GetCoreSchemaHandler,
+    field_serializer,
+    model_validator,
+    field_validator,
+)
 import re
 
 import json
@@ -47,11 +54,12 @@ class PyObjectId(ObjectId):
         """
         Defines the core schema for PyObjectId.
         """
-        return core_schema.no_info_after_validator_function(
+        return core_schema.no_info_plain_validator_function(
             cls.validate,
-            core_schema.union_schema(
-                [core_schema.str_schema(), core_schema.is_instance_schema(ObjectId)]
-            ),
+            serialization=core_schema.plain_serializer_function_ser_schema(str),
+            # core_schema.union_schema(
+            #     [core_schema.str_schema(), core_schema.is_instance_schema(ObjectId)]
+            # ),
         )
 
     @classmethod
@@ -69,6 +77,56 @@ class PyObjectId(ObjectId):
 #     description: str
 
 
+# class MongoModelWithoutMainId(BaseModel):
+
+#     @classmethod
+#     def from_mongo(cls, data: Dict[str, Any]) -> "MongoModelWithoutMainId":
+#         """
+#         Convert MongoDB document to Pydantic model,
+#         handling nested _id conversions and special cases.
+#         """
+#         if not data:
+#             return data
+
+#         def convert_ids(document: Any) -> Any:
+#             # Recursive conversion for nested structures
+#             if isinstance(document, list):
+#                 return [convert_ids(item) for item in document]
+
+#             if isinstance(document, dict):
+#                 # Create a new dict with converted keys and values
+#                 converted = {}
+#                 for key, value in document.items():
+#                     # Convert nested structures
+#                     converted_value = convert_ids(value)
+
+#                     # Special handling for _id
+#                     if key == '_id':
+#                         converted['id'] = str(converted_value)
+#                     else:
+#                         converted[key] = converted_value
+
+#                 return converted
+
+#             # Convert other types to string if needed
+#             return str(document) if isinstance(document, (ObjectId, bytes)) else document
+
+#         # Apply conversion
+#         converted_data = convert_ids(data)
+
+#         # Handle hash separately if needed
+#         hash_value = converted_data.pop('hash', None)
+
+#         # Create model instance
+#         instance = cls(**converted_data)
+
+#         # Explicitly set hash if present
+#         if hash_value is not None:
+#             setattr(instance, "hash", hash_value)
+
+#         return instance
+
+
 class MongoModel(BaseModel):
     id: PyObjectId = Field(default=PyObjectId())
     description: Optional[str] = None
@@ -84,6 +142,11 @@ class MongoModel(BaseModel):
             ObjectId: lambda oid: str(oid),
             PosixPath: lambda path: str(path),
         }
+
+    # Customize serialization of ObjectId
+    @field_serializer("id")
+    def serialize_id(self, id: PyObjectId):
+        return str(id)
 
     @model_validator(mode="before")
     @classmethod
