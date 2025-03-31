@@ -12,11 +12,15 @@ def get_depictio_context():
 
 
 @validate_call
-def convert_model_to_dict(model: BaseModel) -> Dict:
+def convert_model_to_dict(model: BaseModel, exclude_none: bool = False) -> Dict:
     """
     Convert a Pydantic model to a dictionary.
+
+    Args:
+        model: The Pydantic model to convert
+        exclude_none: If True, fields with None values will be excluded
     """
-    return convert_objectid_to_str(model.model_dump())  # type: ignore[no-any-return]
+    return convert_objectid_to_str(model.model_dump(exclude_none=exclude_none))  # type: ignore[no-any-return]
 
 
 @validate_call
