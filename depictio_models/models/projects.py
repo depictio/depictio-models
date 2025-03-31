@@ -18,6 +18,7 @@ class Project(MongoModel):
     workflows: List[Workflow]
     yaml_config_path: str
     permissions: Permission
+    is_public: bool = False
     hash: Optional[str] = None
     registration_time: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
