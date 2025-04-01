@@ -1,10 +1,9 @@
 {
-    "python.testing.pytestArgs": [
-        "."
-    ],
-    "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
-    "python.envFile": "/Users/tweber/Gits/workspaces/depictio/.env",
-    "python.defaultInterpreterPath": ".venv/bin/python",
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestArgs": [
+        "tests"
+    ],
+    // "python.testing.cwd": "${workspaceFolder:depictio-models}",
     "ruff.lineLength": 100
 }
