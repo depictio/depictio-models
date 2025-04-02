@@ -2,7 +2,7 @@ from datetime import datetime
 import hashlib
 import html
 import os
-from pathlib import Path, PosixPath
+from pathlib import Path
 from typing import Optional
 import bleach
 from bson import ObjectId
@@ -13,6 +13,7 @@ from pydantic import (
     field_serializer,
     model_validator,
     field_validator,
+    ConfigDict,
 )
 import re
 
@@ -54,12 +55,11 @@ class PyObjectId(ObjectId):
         """
         Defines the core schema for PyObjectId.
         """
-        return core_schema.no_info_plain_validator_function(
+        return core_schema.no_info_after_validator_function(
             cls.validate,
-            serialization=core_schema.plain_serializer_function_ser_schema(str),
-            # core_schema.union_schema(
-            #     [core_schema.str_schema(), core_schema.is_instance_schema(ObjectId)]
-            # ),
+            core_schema.union_schema(
+                [core_schema.str_schema(), core_schema.is_instance_schema(ObjectId)]
+            ),
         )
 
     @classmethod
@@ -133,15 +133,20 @@ class MongoModel(BaseModel):
     flexible_metadata: Optional[dict] = None
     hash: Optional[str] = None
 
-    class ConfigDict:
-        extra = ("forbid",)
-        # allow_population_by_field_name = True
-        populate_by_name = False
-        json_encoders = {
-            datetime: lambda dt: dt.isoformat(),
-            ObjectId: lambda oid: str(oid),
-            PosixPath: lambda path: str(path),
-        }
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=False,
+    )
+
+    # class ConfigDict:
+    #     extra = ("forbid",)
+    #     # allow_population_by_field_name = True
+    #     populate_by_name = False
+    #     json_encoders = {
+    #         datetime: lambda dt: dt.isoformat(),
+    #         ObjectId: lambda oid: str(oid),
+    #         PosixPath: lambda path: str(path),
+    #     }
 
     # Customize serialization of ObjectId
     @field_serializer("id")
@@ -259,19 +264,21 @@ class MongoModel(BaseModel):
             by_alias=by_alias,
             **kwargs,
         )
+        logger.warning(f"Parsed: {parsed}")
 
         def convert_ids(obj):
             if isinstance(obj, dict):
                 new_dict = {}
                 for key, value in obj.items():
                     # Rename 'id' keys to '_id'
-                    new_key = "_id" if key == "id" else key
-
-                    # Convert PyObjectId to ObjectId and recurse
-                    if isinstance(value, PyObjectId):
-                        new_dict[new_key] = ObjectId(str(value))
+                    if key == "id":
+                        new_key = "_id"
+                        new_dict[new_key] = PyObjectId(str(value))
                     else:
+                        new_key = key
+                        # Recursively convert nested structures
                         new_dict[new_key] = convert_ids(value)
+
                 return new_dict
             elif isinstance(obj, list):
                 return [convert_ids(item) for item in obj]
@@ -279,11 +286,13 @@ class MongoModel(BaseModel):
                 return obj
 
         parsed = convert_ids(parsed)
+        logger.warning(f"Converted: {parsed}")
 
         # Convert PosixPath to str
         for key, value in parsed.items():
             if isinstance(value, Path):
                 parsed[key] = str(value)
+        logger.warning(f"Converted after path: {parsed}")
 
         return parsed
 
