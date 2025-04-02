@@ -1,5 +1,6 @@
 from typing import Dict, List, Optional
 from bson import ObjectId
+from pydantic import ConfigDict
 
 from depictio_models.models.users import Permission
 from depictio_models.models.base import MongoModel, PyObjectId
@@ -23,7 +24,7 @@ class DashboardData(MongoModel):
     permissions: Permission
     last_saved_ts: str = ""
     project_id: PyObjectId
-
-    class Config:
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: lambda oid: str(oid)}
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: lambda oid: str(oid)},
+    )
