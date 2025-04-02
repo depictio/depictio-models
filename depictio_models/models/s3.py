@@ -1,5 +1,8 @@
+import os
 import re
-from pydantic import BaseModel, field_validator
+from typing import Optional
+from pydantic import AliasChoices, BaseModel, Field, field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class PolarsStorageOptions(BaseModel):
@@ -69,59 +72,134 @@ class PolarsStorageOptions(BaseModel):
         return v
 
 
-class MinIOS3Config(BaseModel):
-    """Configuration model for MinIO S3 storage.
+class S3DepictioCLIConfig(BaseSettings):
+    endpoint_url: str = Field(
+        default="http://localhost:9000",
+        json_schema_extra={"env": "DEPICTIO_MINIO_ENDPOINT_URL"},
+    )
+    root_user: str = Field(
+        default="minio",
+        validation_alias=AliasChoices(
+            "DEPICTIO_MINIO_ROOT_USER", "DEPICTIO_MINIO_ACCESS_KEY", "MINIO_ACCESS_KEY"
+        ),
+    )
+    root_password: str = Field(
+        default="minio123",
+        validation_alias=AliasChoices(
+            "DEPICTIO_MINIO_ROOT_PASSWORD",
+            "DEPICTIO_MINIO_SECRET_KEY",
+            "MINIO_SECRET_KEY",
+        ),
+    )
+    bucket: str = Field(
+        default="depictio-bucket", json_schema_extra={"env": "DEPICTIO_MINIO_BUCKET"}
+    )
 
-    This model defines the required configuration for connecting to a MinIO S3 server.
-    The configuration includes connection details and credentials.
-    """
 
-    provider: str = "minio"  # Only MinIO is supported currently
-    bucket: str  # Name of the bucket to use
-    endpoint: str = "http://localhost"  # MinIO server endpoint URL
-    port: int = 9000  # MinIO server port
-    minio_root_user: str  # MinIO root username
-    minio_root_password: str  # MinIO root password
+class MinioConfig(S3DepictioCLIConfig):
+    """Minio configuration."""
 
-    class ConfigDict:
-        extra = "forbid"  # Reject any unexpected fields
+    internal_endpoint: str = Field(
+        default="http://minio",
+        json_schema_extra={"env": "DEPICTIO_MINIO_INTERNAL_ENDPOINT"},
+    )
+    external_endpoint: str = Field(
+        default="http://localhost",
+        json_schema_extra={"env": "DEPICTIO_MINIO_EXTERNAL_ENDPOINT"},
+    )
+    port: Optional[int] = Field(default=9000, json_schema_extra={"env": "DEPICTIO_MINIO_PORT"})
+    secure: bool = Field(default=False, json_schema_extra={"env": "DEPICTIO_MINIO_SECURE"})
+    data_dir: str = Field(
+        default="/depictio/minio_data",
+        json_schema_extra={"env": "DEPICTIO_MINIO_DATA_DIR"},
+    )
+    model_config = SettingsConfigDict(env_prefix="DEPICTIO_MINIO_")
 
-    @field_validator("provider")
-    def validate_provider(cls, v):
-        if v.lower() != "minio":
-            raise ValueError("Only MinIO is supported as a provider")
-        return v
+    @model_validator(mode="before")
+    def configure_endpoint_url(cls, values):
+        # Check if running in a container
+        is_container = os.getenv("DEPICTIO_CONTAINER", "false").lower() == "true"
 
-    @field_validator("port")
-    def validate_port(cls, v):
-        if not 0 < v < 65536:
-            raise ValueError("Port number must be between 1 and 65535")
-        return v
+        # Get internal and external endpoints
+        internal_endpoint = values.get("internal_endpoint", "http://minio")
+        external_endpoint = values.get("external_endpoint", "http://localhost")
+        port = values.get("port", 9000)
 
-    @field_validator("endpoint")
-    def validate_internal_endpoint(cls, v):
-        if not v:
-            raise ValueError("Endpoint cannot be empty")
-        if not re.match(r"^https?://[^/]+", v):
-            raise ValueError("Invalid URL format")
-        return v
+        if is_container:
+            if external_endpoint == "http://localhost":
+                # If running in a container and external endpoint is localhost, use internal endpoint
+                endpoint_url = f"{internal_endpoint}:{port}"
+            else:
+                if port:
+                    endpoint_url = f"{external_endpoint}:{port}"
+                else:
+                    endpoint_url = external_endpoint
+        else:
+            if port:
+                endpoint_url = f"{external_endpoint}:{port}"
+            else:
+                endpoint_url = external_endpoint
+        values["endpoint_url"] = endpoint_url
 
-    @field_validator("bucket")
-    def validate_bucket(cls, v):
-        if not v:
-            raise ValueError("Bucket name cannot be empty")
-        # Could add more bucket name validation rules here if needed
-        return v
+        return values
 
-    @field_validator("minio_root_user")
-    def validate_root_user(cls, v):
-        if not v:
-            raise ValueError("Root user cannot be empty")
-        return v
 
-    @field_validator("minio_root_password")
-    def validate_root_password(cls, v):
-        if not v:
-            raise ValueError("Root password cannot be empty")
-        # Could add password strength validation if needed
-        return v
+# class MinIOS3Config(BaseModel):
+#     """Configuration model for MinIO S3 storage.
+
+#     This model defines the required configuration for connecting to a MinIO S3 server.
+#     The configuration includes connection details and credentials.
+#     """
+
+#     provider: str = "minio"  # Only MinIO is supported currently
+#     bucket: str  # Name of the bucket to use
+#     endpoint: str = "http://localhost"  # MinIO server endpoint URL
+#     port: int = 9000  # MinIO server port
+#     # url: str = "http://localhost:9000"  # Full URL to the MinIO server
+#     minio_root_user: str  # MinIO root username
+#     minio_root_password: str  # MinIO root password
+#     model_config = ConfigDict(extra="forbid")  # Reject any unexpected fields
+
+#     # class ConfigDict:
+#     #     extra = "forbid"  # Reject any unexpected fields
+
+
+#     @field_validator("provider")
+#     def validate_provider(cls, v):
+#         if v.lower() != "minio":
+#             raise ValueError("Only MinIO is supported as a provider")
+#         return v
+
+#     @field_validator("port")
+#     def validate_port(cls, v):
+#         if not 0 < v < 65536:
+#             raise ValueError("Port number must be between 1 and 65535")
+#         return v
+
+#     @field_validator("endpoint")
+#     def validate_internal_endpoint(cls, v):
+#         if not v:
+#             raise ValueError("Endpoint cannot be empty")
+#         if not re.match(r"^https?://[^/]+", v):
+#             raise ValueError("Invalid URL format")
+#         return v
+
+#     @field_validator("bucket")
+#     def validate_bucket(cls, v):
+#         if not v:
+#             raise ValueError("Bucket name cannot be empty")
+#         # Could add more bucket name validation rules here if needed
+#         return v
+
+#     @field_validator("minio_root_user")
+#     def validate_root_user(cls, v):
+#         if not v:
+#             raise ValueError("Root user cannot be empty")
+#         return v
+
+#     @field_validator("minio_root_password")
+#     def validate_root_password(cls, v):
+#         if not v:
+#             raise ValueError("Root password cannot be empty")
+#         # Could add password strength validation if needed
+#         return v
