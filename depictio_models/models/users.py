@@ -1,5 +1,4 @@
 from typing import List, Optional, Union
-from bson import ObjectId
 from pydantic import (
     BaseModel,
     EmailStr,
@@ -18,7 +17,6 @@ class Token(MongoModel):
     token_lifetime: str = "short-lived"
     expire_datetime: str
     name: Optional[str] = None
-    hash: Optional[str] = None
 
 
 class Group(MongoModel):
@@ -28,6 +26,10 @@ class Group(MongoModel):
 class UserBaseGroupLess(MongoModel):
     email: EmailStr
     is_admin: bool = False
+
+
+class UserBaseCLIConfig(UserBaseGroupLess):
+    token: Token
 
 
 class GroupWithUsers(MongoModel):
@@ -51,6 +53,9 @@ class User(UserBase):
     last_login: Optional[str] = None
     registration_date: Optional[str] = None
     password: str
+    # model_config = ConfigDict(
+
+    # )
 
     @field_validator("password", mode="before")
     def hash_password(cls, v):
@@ -58,8 +63,8 @@ class User(UserBase):
         if v.startswith("$2b$"):
             return v
 
-    class ConfigDict:
-        json_encoders = {ObjectId: lambda v: str(v)}
+    # class ConfigDict:
+    #     json_encoders = {ObjectId: lambda v: str(v)}
 
     def __hash__(self):
         # Hash based on the unique user_id
@@ -80,6 +85,11 @@ class User(UserBase):
         userbase = UserBase(
             email=model_dump["email"], is_admin=model_dump["is_admin"], groups=model_dump["groups"]
         )
+        return userbase
+
+    def turn_to_userbasegroupless(self):
+        model_dump = self.model_dump()
+        userbase = UserBaseGroupLess(email=model_dump["email"], is_admin=model_dump["is_admin"])
         return userbase
 
 
