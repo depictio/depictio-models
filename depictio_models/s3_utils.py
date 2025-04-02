@@ -5,17 +5,17 @@ import boto3
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError, ClientError
 
 from depictio_models.models.cli import CLIConfig
-from depictio_models.models.s3 import MinIOS3Config, PolarsStorageOptions
+from depictio_models.models.s3 import MinioConfig, PolarsStorageOptions
 from depictio.api.v1.configs.logging import logger
 
 
 class S3ProviderBase(ABC):
-    def __init__(self, config: MinIOS3Config):
+    def __init__(self, config: MinioConfig):
         self.config = config
         self.bucket_name = config.bucket
-        self.endpoint_url = f"{config.endpoint}:{config.port}"
-        self.access_key = config.minio_root_user
-        self.secret_key = config.minio_root_password
+        self.endpoint_url = config.endpoint_url
+        self.access_key = config.root_user
+        self.secret_key = config.root_password
         self.s3_client = boto3.client(
             "s3",
             endpoint_url=self.endpoint_url,
@@ -111,12 +111,12 @@ class S3ProviderBase(ABC):
 
 
 class MinIOManager(S3ProviderBase):
-    def __init__(self, config: MinIOS3Config):
+    def __init__(self, config: MinioConfig):
         logger.info(f"Initializing MinIOManager with bucket '{config.bucket}'")
         super().__init__(config)
 
 
-def S3_storage_checks(s3_config: MinIOS3Config, checks: Optional[List[str]] = None):
+def S3_storage_checks(s3_config: MinioConfig, checks: Optional[List[str]] = None):
     """
     Flexible S3 storage checks.
 
@@ -140,6 +140,6 @@ def turn_S3_config_into_polars_storage_options(cli_config: CLIConfig):
     s3_config = cli_config.s3_storage
     return PolarsStorageOptions(
         endpoint_url=f"{s3_config.endpoint}:{s3_config.port}",
-        aws_access_key_id=s3_config.minio_root_user,
-        aws_secret_access_key=s3_config.minio_root_password,
+        aws_access_key_id=s3_config.root_user,
+        aws_secret_access_key=s3_config.root_password,
     )

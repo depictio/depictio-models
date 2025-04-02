@@ -4,7 +4,7 @@ from typing import List
 from pydantic import BaseModel, field_validator
 
 from depictio_models.models.base import PyObjectId
-from depictio_models.models.s3 import MinIOS3Config
+from depictio_models.models.s3 import MinioConfig
 from depictio_models.models.users import Group
 
 
@@ -79,7 +79,7 @@ class UserCLIConfig(BaseModel):
 class CLIConfig(BaseModel):
     api_base_url: str
     user: UserCLIConfig
-    s3_storage: MinIOS3Config
+    s3_storage: MinioConfig
 
     class ConfigDict:
         extra = "forbid"  # Reject unexpected fields
