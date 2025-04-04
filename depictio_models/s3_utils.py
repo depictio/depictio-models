@@ -6,7 +6,7 @@ from botocore.exceptions import NoCredentialsError, PartialCredentialsError, Cli
 
 from depictio_models.models.cli import CLIConfig
 from depictio_models.models.s3 import MinioConfig, PolarsStorageOptions
-from depictio.api.v1.configs.logging import logger
+from depictio_models.logging import logger
 
 
 class S3ProviderBase(ABC):
