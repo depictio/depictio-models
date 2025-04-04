@@ -1,7 +1,10 @@
+from datetime import datetime
 import os
+from beanie import PydanticObjectId
 import yaml
 from typing import Any, Dict, Type
 from pydantic import BaseModel, ValidationError, validate_call
+from bson import ObjectId
 
 from depictio_models.logging import logger
 from depictio_models.models.base import convert_objectid_to_str
@@ -77,3 +80,31 @@ def validate_model_config(config: dict, pydantic_model: Type[BaseModel]) -> Base
     except ValidationError as e:
         raise ValueError(f"Invalid config: {e}")
     return data
+
+
+# Helper function to make data JSON serializable
+@validate_call
+def make_json_serializable(data):
+    """Convert any non-JSON serializable objects (like ObjectId) to strings."""
+    result = {}
+    for key, value in data.items():
+        if isinstance(value, (PydanticObjectId, ObjectId)):
+            result[key] = str(value)
+        elif isinstance(value, datetime):
+            result[key] = value.isoformat()
+        elif isinstance(value, BaseModel):
+            result[key] = make_json_serializable(value.model_dump())
+        elif isinstance(value, dict):
+            result[key] = make_json_serializable(value)
+        elif isinstance(value, list):
+            result[key] = [
+                make_json_serializable(item)
+                if isinstance(item, dict)
+                else str(item)
+                if isinstance(item, (PydanticObjectId, ObjectId))
+                else item
+                for item in value
+            ]
+        else:
+            result[key] = value
+    return result
