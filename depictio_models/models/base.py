@@ -132,21 +132,10 @@ class MongoModel(BaseModel):
     description: Optional[str] = None
     flexible_metadata: Optional[dict] = None
     hash: Optional[str] = None
-
     model_config = ConfigDict(
         extra="forbid",
         populate_by_name=False,
     )
-
-    # class ConfigDict:
-    #     extra = ("forbid",)
-    #     # allow_population_by_field_name = True
-    #     populate_by_name = False
-    #     json_encoders = {
-    #         datetime: lambda dt: dt.isoformat(),
-    #         ObjectId: lambda oid: str(oid),
-    #         PosixPath: lambda path: str(path),
-    #     }
 
     # Customize serialization of ObjectId
     @field_serializer("id")
@@ -295,31 +284,6 @@ class MongoModel(BaseModel):
         logger.warning(f"Converted after path: {parsed}")
 
         return parsed
-
-    def tinydb(self, **kwargs):
-        exclude_unset = kwargs.pop("exclude_unset", False)
-        by_alias = kwargs.pop("by_alias", True)
-
-        parsed = self.model_dump(
-            exclude_unset=exclude_unset,
-            by_alias=by_alias,
-            **kwargs,
-        )
-
-        converted = {}
-        # Convert Path and datetime objects to serializable types
-        for key, value in parsed.items():
-            if isinstance(value, Path):
-                converted[key] = str(value)  # Convert Path to string
-            elif isinstance(value, datetime):
-                converted[key] = value.isoformat()  # Convert datetime to ISO string
-            else:
-                converted[key] = value
-
-        # Second pass: remove None values safely
-        cleaned = {k: v for k, v in converted.items() if v is not None}
-
-        return convert_objectid_to_str(cleaned)
 
 
 class DirectoryPath(BaseModel):
