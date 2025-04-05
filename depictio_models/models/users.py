@@ -1,22 +1,145 @@
+from datetime import datetime
 from typing import List, Optional, Union
 from pydantic import (
     BaseModel,
     EmailStr,
     Field,
+    HttpUrl,
+    field_serializer,
     field_validator,
     model_validator,
 )
-
+from beanie import Document, Link, PydanticObjectId
 
 from depictio_models.models.base import MongoModel
 from depictio_models.logging import logger
+from depictio_models.models.s3 import S3DepictioCLIConfig
 
 
-class Token(MongoModel):
-    access_token: str
-    token_lifetime: str = "short-lived"
-    expire_datetime: str
+class TokenData(BaseModel):
     name: Optional[str] = None
+    token_lifetime: str = Field(
+        default="short-lived",
+        description="Lifetime of the token",
+        pattern="^(short-lived|long-lived)$",
+    )
+    token_type: str = Field(
+        default="bearer", description="Type of authentication token", pattern="^(bearer|custom)$"
+    )
+    sub: PydanticObjectId
+
+    @field_serializer("sub")
+    def serialize_sub(self, sub: PydanticObjectId) -> str:
+        return str(sub)
+
+    @field_validator("token_lifetime")
+    @classmethod
+    def validate_token_lifetime(cls, v: str) -> str:
+        """
+        Validate token lifetime value.
+        """
+        allowed_lifetimes = ["short-lived", "long-lived"]
+        if v not in allowed_lifetimes:
+            raise ValueError(f"Token lifetime must be one of {allowed_lifetimes}")
+        return v
+
+    @field_validator("token_type")
+    @classmethod
+    def validate_token_type(cls, v: str) -> str:
+        """
+        Validate token type value.
+        """
+        allowed_types = ["bearer", "custom"]
+        if v not in allowed_types:
+            raise ValueError(f"Token type must be one of {allowed_types}")
+        return v
+
+
+class Token(TokenData):
+    access_token: str = Field(
+        description="Authentication access token",
+        min_length=10,  # Minimum token length
+        max_length=512,  # Maximum reasonable token length
+    )
+    expire_datetime: datetime = Field(description="Token expiration timestamp")
+
+    @field_serializer("expire_datetime")
+    def serialize_datetime(self, dt: datetime) -> str:
+        """
+        Serialize datetime to ISO format string.
+        """
+        return dt.isoformat()
+
+    @field_validator("expire_datetime")
+    @classmethod
+    def validate_expiration(cls, v: datetime) -> datetime:
+        """
+        Validate that expiration datetime is in the future.
+        """
+        if v <= datetime.now():
+            raise ValueError("Expiration datetime must be in the future")
+        return v
+
+    @field_validator("access_token")
+    @classmethod
+    def validate_access_token(cls, v: str) -> str:
+        """
+        Additional validation for access token.
+        """
+        # Example validation: ensure token contains a mix of characters
+        if not (
+            any(c.isupper() for c in v)
+            and any(c.islower() for c in v)
+            and any(c.isdigit() for c in v)
+        ):
+            raise ValueError(
+                "Access token must contain uppercase, lowercase, and numeric characters"
+            )
+        return v
+
+
+class TokenBeanie(Document):
+    user_id: PydanticObjectId  # Reference to User's ObjectId
+    access_token: str
+    token_type: str = "bearer"
+    token_lifetime: str = "short-lived"
+    expire_datetime: datetime
+    name: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.now)
+    model_config = {"arbitrary_types_allowed": True}
+
+    class Settings:
+        name = "tokens"  # Collection name
+        use_revision = True  # Track document revisions
+
+    # Field serializers for Pydantic v2
+    @field_serializer("id")
+    def serialize_id(self, id: PydanticObjectId) -> str:
+        return str(id)
+
+    @field_serializer("user_id")
+    def serialize_user_id(self, user_id: PydanticObjectId) -> str:
+        return str(user_id)
+
+    # For consistent responses in the API
+    def to_response_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "access_token": self.access_token,
+            "token_type": self.token_type,
+            "expires_in": int((self.expire_datetime - datetime.now()).total_seconds()),
+            "expires_at": self.expire_datetime,
+            "created_at": self.created_at,
+        }
+
+
+class GroupBeanie(Document):
+    name: str
+
+    class Settings:
+        name = "groups"  # Collection name
+        use_revision = True  # Track document revisions
 
 
 class Group(MongoModel):
@@ -43,6 +166,59 @@ class UserBase(UserBaseGroupLess):
 
 class GroupUI(Group):
     users: List[UserBaseGroupLess] = []
+
+
+class UserBaseGropLessBeanie(Document):
+    email: EmailStr
+    is_admin: bool = False
+
+
+class UserBaseCLIConfigBeanie(UserBaseGropLessBeanie):
+    token: TokenBeanie
+
+
+class CLIConfig(BaseModel):
+    user: UserBaseCLIConfigBeanie
+    base_url: HttpUrl
+    s3: S3DepictioCLIConfig
+
+
+class UserBaseBeanie(UserBaseGropLessBeanie):
+    groups: List[Link[GroupBeanie]]
+
+
+class UserBeanie(UserBaseBeanie):
+    # tokens: List[Link[TokenBeanie]] = Field(default_factory=list)
+    # current_access_token: Optional[str] = None
+    is_active: bool = True
+    is_verified: bool = False
+    last_login: Optional[str] = None
+    registration_date: Optional[str] = None
+    password: str
+
+    class Settings:
+        name = "users"  # Collection name
+        use_revision = True  # Track document revisions
+
+    @field_validator("password", mode="before")
+    def hash_password(cls, v):
+        # check that the password is hashed
+        if v.startswith("$2b$"):
+            return v
+
+    def turn_to_userbase(self):
+        model_dump = self.model_dump()
+        userbase = UserBaseBeanie(
+            email=model_dump["email"], is_admin=model_dump["is_admin"], groups=model_dump["groups"]
+        )
+        return userbase
+
+    def turn_to_userbasegroupless(self):
+        model_dump = self.model_dump()
+        userbase = UserBaseGropLessBeanie(
+            email=model_dump["email"], is_admin=model_dump["is_admin"]
+        )
+        return userbase
 
 
 class User(UserBase):
