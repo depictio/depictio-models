@@ -28,7 +28,7 @@ jobs:
       - name: Install package and depe^ndencies
         run: |
           uv pip install -e .
-          uv pip install pytest pytest-cov mypy ruff build uv types-bleach types-PyYAML types-requests
+          uv pip install pytest pytest-cov mypy ruff build uv types-bleach types-PyYAML types-requests beanie mongomock-motor 
           uv pip list  # optional diagnostic step
 
       - name: Run tests with pytest
