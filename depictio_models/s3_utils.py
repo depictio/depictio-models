@@ -139,7 +139,7 @@ def turn_S3_config_into_polars_storage_options(cli_config: CLIConfig):
     """
     s3_config = cli_config.s3_storage
     return PolarsStorageOptions(
-        endpoint_url=f"{s3_config.endpoint}:{s3_config.port}",
+        endpoint_url=f"{s3_config.endpoint_url}:{s3_config.port}",
         aws_access_key_id=s3_config.root_user,
         aws_secret_access_key=s3_config.root_password,
     )
