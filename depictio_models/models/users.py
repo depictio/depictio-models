@@ -18,18 +18,84 @@ from depictio_models.models.s3 import S3DepictioCLIConfig
 
 class TokenData(BaseModel):
     name: Optional[str] = None
-    token_lifetime: str = "short-lived"
-    token_type: str = "bearer"
+    token_lifetime: str = Field(
+        default="short-lived",
+        description="Lifetime of the token",
+        pattern="^(short-lived|long-lived)$",
+    )
+    token_type: str = Field(
+        default="bearer", description="Type of authentication token", pattern="^(bearer|custom)$"
+    )
     sub: PydanticObjectId
 
     @field_serializer("sub")
     def serialize_sub(self, sub: PydanticObjectId) -> str:
         return str(sub)
 
+    @field_validator("token_lifetime")
+    @classmethod
+    def validate_token_lifetime(cls, v: str) -> str:
+        """
+        Validate token lifetime value.
+        """
+        allowed_lifetimes = ["short-lived", "long-lived"]
+        if v not in allowed_lifetimes:
+            raise ValueError(f"Token lifetime must be one of {allowed_lifetimes}")
+        return v
+
+    @field_validator("token_type")
+    @classmethod
+    def validate_token_type(cls, v: str) -> str:
+        """
+        Validate token type value.
+        """
+        allowed_types = ["bearer", "custom"]
+        if v not in allowed_types:
+            raise ValueError(f"Token type must be one of {allowed_types}")
+        return v
+
 
 class Token(TokenData):
-    access_token: str
-    expire_datetime: str
+    access_token: str = Field(
+        description="Authentication access token",
+        min_length=10,  # Minimum token length
+        max_length=512,  # Maximum reasonable token length
+    )
+    expire_datetime: datetime = Field(description="Token expiration timestamp")
+
+    @field_serializer("expire_datetime")
+    def serialize_datetime(self, dt: datetime) -> str:
+        """
+        Serialize datetime to ISO format string.
+        """
+        return dt.isoformat()
+
+    @field_validator("expire_datetime")
+    @classmethod
+    def validate_expiration(cls, v: datetime) -> datetime:
+        """
+        Validate that expiration datetime is in the future.
+        """
+        if v <= datetime.now():
+            raise ValueError("Expiration datetime must be in the future")
+        return v
+
+    @field_validator("access_token")
+    @classmethod
+    def validate_access_token(cls, v: str) -> str:
+        """
+        Additional validation for access token.
+        """
+        # Example validation: ensure token contains a mix of characters
+        if not (
+            any(c.isupper() for c in v)
+            and any(c.islower() for c in v)
+            and any(c.isdigit() for c in v)
+        ):
+            raise ValueError(
+                "Access token must contain uppercase, lowercase, and numeric characters"
+            )
+        return v
 
 
 class TokenBeanie(Document):
