@@ -16,11 +16,20 @@ from depictio_models.logging import logger
 from depictio_models.models.s3 import S3DepictioCLIConfig
 
 
-class Token(MongoModel):
-    access_token: str
-    token_lifetime: str = "short-lived"
-    expire_datetime: str
+class TokenData(BaseModel):
     name: Optional[str] = None
+    token_lifetime: str = "short-lived"
+    token_type: str = "bearer"
+    sub: PydanticObjectId
+
+    @field_serializer("sub")
+    def serialize_sub(self, sub: PydanticObjectId) -> str:
+        return str(sub)
+
+
+class Token(TokenData):
+    access_token: str
+    expire_datetime: str
 
 
 class TokenBeanie(Document):
@@ -113,8 +122,8 @@ class UserBaseBeanie(UserBaseGropLessBeanie):
 
 
 class UserBeanie(UserBaseBeanie):
-    tokens: List[Link[TokenBeanie]] = Field(default_factory=list)
-    current_access_token: Optional[str] = None
+    # tokens: List[Link[TokenBeanie]] = Field(default_factory=list)
+    # current_access_token: Optional[str] = None
     is_active: bool = True
     is_verified: bool = False
     last_login: Optional[str] = None
