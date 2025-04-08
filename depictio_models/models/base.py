@@ -35,6 +35,8 @@ def convert_objectid_to_str(item):
         return item.strftime("%Y-%m-%d %H:%M:%S")
     elif isinstance(item, Path):
         return str(item)
+    elif isinstance(item, BaseModel):
+        return item.model_dump_json(exclude_unset=True, by_alias=True)
     else:
         return item
 
