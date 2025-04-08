@@ -110,7 +110,7 @@ class TokenBeanie(Document):
 
     class Settings:
         name = "tokens"  # Collection name
-        use_revision = True  # Track document revisions
+        # use_revision = True  # Track document revisions
 
     # Field serializers for Pydantic v2
     @field_serializer("id")
@@ -168,12 +168,12 @@ class GroupUI(Group):
     users: List[UserBaseGroupLess] = []
 
 
-class UserBaseGropLessBeanie(Document):
+class UserBaseGroupLessBeanie(Document):
     email: EmailStr
     is_admin: bool = False
 
 
-class UserBaseCLIConfigBeanie(UserBaseGropLessBeanie):
+class UserBaseCLIConfigBeanie(UserBaseGroupLessBeanie):
     token: TokenBeanie
 
 
@@ -183,7 +183,7 @@ class CLIConfig(BaseModel):
     s3: S3DepictioCLIConfig
 
 
-class UserBaseBeanie(UserBaseGropLessBeanie):
+class UserBaseBeanie(UserBaseGroupLessBeanie):
     groups: List[Link[GroupBeanie]]
 
 
@@ -198,7 +198,7 @@ class UserBeanie(UserBaseBeanie):
 
     class Settings:
         name = "users"  # Collection name
-        use_revision = True  # Track document revisions
+        # use_revision = True  # Track document revisions
 
     @field_validator("password", mode="before")
     def hash_password(cls, v):
@@ -215,7 +215,7 @@ class UserBeanie(UserBaseBeanie):
 
     def turn_to_userbasegroupless(self):
         model_dump = self.model_dump()
-        userbase = UserBaseGropLessBeanie(
+        userbase = UserBaseGroupLessBeanie(
             email=model_dump["email"], is_admin=model_dump["is_admin"]
         )
         return userbase
