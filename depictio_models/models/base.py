@@ -7,13 +7,13 @@ from typing import Optional
 import bleach
 from bson import ObjectId
 from pydantic import (
+    ConfigDict,
     BaseModel,
     Field,
     GetCoreSchemaHandler,
     field_serializer,
     model_validator,
     field_validator,
-    ConfigDict,
 )
 import re
 
@@ -35,8 +35,6 @@ def convert_objectid_to_str(item):
         return item.strftime("%Y-%m-%d %H:%M:%S")
     elif isinstance(item, Path):
         return str(item)
-    elif isinstance(item, BaseModel):
-        return item.model_dump_json(exclude_unset=True, by_alias=True)
     else:
         return item
 
@@ -57,11 +55,12 @@ class PyObjectId(ObjectId):
         """
         Defines the core schema for PyObjectId.
         """
-        return core_schema.no_info_after_validator_function(
+        return core_schema.no_info_plain_validator_function(
             cls.validate,
-            core_schema.union_schema(
-                [core_schema.str_schema(), core_schema.is_instance_schema(ObjectId)]
-            ),
+            serialization=core_schema.plain_serializer_function_ser_schema(str),
+            # core_schema.union_schema(
+            #     [core_schema.str_schema(), core_schema.is_instance_schema(ObjectId)]
+            # ),
         )
 
     @classmethod
@@ -75,60 +74,6 @@ class PyObjectId(ObjectId):
         raise ValueError(f"Invalid ObjectId: {v}")
 
 
-# class Description(BaseModel):
-#     description: str
-
-
-# class MongoModelWithoutMainId(BaseModel):
-
-#     @classmethod
-#     def from_mongo(cls, data: Dict[str, Any]) -> "MongoModelWithoutMainId":
-#         """
-#         Convert MongoDB document to Pydantic model,
-#         handling nested _id conversions and special cases.
-#         """
-#         if not data:
-#             return data
-
-#         def convert_ids(document: Any) -> Any:
-#             # Recursive conversion for nested structures
-#             if isinstance(document, list):
-#                 return [convert_ids(item) for item in document]
-
-#             if isinstance(document, dict):
-#                 # Create a new dict with converted keys and values
-#                 converted = {}
-#                 for key, value in document.items():
-#                     # Convert nested structures
-#                     converted_value = convert_ids(value)
-
-#                     # Special handling for _id
-#                     if key == '_id':
-#                         converted['id'] = str(converted_value)
-#                     else:
-#                         converted[key] = converted_value
-
-#                 return converted
-
-#             # Convert other types to string if needed
-#             return str(document) if isinstance(document, (ObjectId, bytes)) else document
-
-#         # Apply conversion
-#         converted_data = convert_ids(data)
-
-#         # Handle hash separately if needed
-#         hash_value = converted_data.pop('hash', None)
-
-#         # Create model instance
-#         instance = cls(**converted_data)
-
-#         # Explicitly set hash if present
-#         if hash_value is not None:
-#             setattr(instance, "hash", hash_value)
-
-#         return instance
-
-
 class MongoModel(BaseModel):
     id: PyObjectId = Field(default=PyObjectId())
     description: Optional[str] = None
@@ -136,7 +81,7 @@ class MongoModel(BaseModel):
     hash: Optional[str] = None
     model_config = ConfigDict(
         extra="forbid",
-        populate_by_name=False,
+        # allow_population_by_field_name=True,
     )
 
     # Customize serialization of ObjectId
@@ -255,7 +200,6 @@ class MongoModel(BaseModel):
             by_alias=by_alias,
             **kwargs,
         )
-        logger.warning(f"Parsed: {parsed}")
 
         def convert_ids(obj):
             if isinstance(obj, dict):
@@ -277,15 +221,38 @@ class MongoModel(BaseModel):
                 return obj
 
         parsed = convert_ids(parsed)
-        logger.warning(f"Converted: {parsed}")
 
         # Convert PosixPath to str
         for key, value in parsed.items():
             if isinstance(value, Path):
                 parsed[key] = str(value)
-        logger.warning(f"Converted after path: {parsed}")
 
         return parsed
+
+    def tinydb(self, **kwargs):
+        exclude_unset = kwargs.pop("exclude_unset", False)
+        by_alias = kwargs.pop("by_alias", True)
+
+        parsed = self.model_dump(
+            exclude_unset=exclude_unset,
+            by_alias=by_alias,
+            **kwargs,
+        )
+
+        converted = {}
+        # Convert Path and datetime objects to serializable types
+        for key, value in parsed.items():
+            if isinstance(value, Path):
+                converted[key] = str(value)  # Convert Path to string
+            elif isinstance(value, datetime):
+                converted[key] = value.isoformat()  # Convert datetime to ISO string
+            else:
+                converted[key] = value
+
+        # Second pass: remove None values safely
+        cleaned = {k: v for k, v in converted.items() if v is not None}
+
+        return convert_objectid_to_str(cleaned)
 
 
 class DirectoryPath(BaseModel):
