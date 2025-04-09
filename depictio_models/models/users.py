@@ -9,9 +9,9 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-from beanie import Document, Link, PydanticObjectId
+from beanie import Document, PydanticObjectId
 
-from depictio_models.models.base import MongoModel
+from depictio_models.models.base import MongoModel, PyObjectId
 from depictio_models.logging import logger
 from depictio_models.models.s3 import S3DepictioCLIConfig
 
@@ -98,7 +98,8 @@ class Token(TokenData):
         return v
 
 
-class TokenBeanie(Document):
+class TokenBase(MongoModel):
+    # id: PydanticObjectId = Field(default_factory=PydanticObjectId, alias="_id")
     user_id: PydanticObjectId  # Reference to User's ObjectId
     access_token: str
     token_type: str = "bearer"
@@ -107,19 +108,24 @@ class TokenBeanie(Document):
     name: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.now)
     model_config = {"arbitrary_types_allowed": True}
-
-    class Settings:
-        name = "tokens"  # Collection name
-        use_revision = True  # Track document revisions
+    logged_in: bool = False
 
     # Field serializers for Pydantic v2
     @field_serializer("id")
-    def serialize_id(self, id: PydanticObjectId) -> str:
+    def serialize_id(self, id: PyObjectId) -> str:
         return str(id)
 
     @field_serializer("user_id")
     def serialize_user_id(self, user_id: PydanticObjectId) -> str:
         return str(user_id)
+
+    @field_serializer("expire_datetime")
+    def serialize_expire_datetime(self, expire_datetime: datetime) -> str:
+        return expire_datetime.strftime("%Y-%m-%d %H:%M:%S")
+
+    @field_serializer("created_at")
+    def serialize_created_at(self, created_at: datetime) -> str:
+        return created_at.strftime("%Y-%m-%d %H:%M:%S")
 
     # For consistent responses in the API
     def to_response_dict(self):
@@ -134,16 +140,20 @@ class TokenBeanie(Document):
         }
 
 
-class GroupBeanie(Document):
-    name: str
-
+class TokenBeanie(TokenBase, Document):
     class Settings:
-        name = "groups"  # Collection name
-        use_revision = True  # Track document revisions
+        name = "tokens"  # Collection name
 
 
 class Group(MongoModel):
     name: str
+
+
+class GroupBeanie(Group, Document):
+    name: str
+
+    class Settings:
+        name = "groups"  # Collection name
 
 
 class UserBaseGroupLess(MongoModel):
@@ -152,7 +162,7 @@ class UserBaseGroupLess(MongoModel):
 
 
 class UserBaseCLIConfig(UserBaseGroupLess):
-    token: Token
+    token: TokenBeanie
 
 
 class GroupWithUsers(MongoModel):
@@ -168,27 +178,14 @@ class GroupUI(Group):
     users: List[UserBaseGroupLess] = []
 
 
-class UserBaseGropLessBeanie(Document):
-    email: EmailStr
-    is_admin: bool = False
-
-
-class UserBaseCLIConfigBeanie(UserBaseGropLessBeanie):
-    token: TokenBeanie
-
-
 class CLIConfig(BaseModel):
-    user: UserBaseCLIConfigBeanie
+    user: UserBaseCLIConfig
     base_url: HttpUrl
     s3: S3DepictioCLIConfig
 
 
-class UserBaseBeanie(UserBaseGropLessBeanie):
-    groups: List[Link[GroupBeanie]]
-
-
-class UserBeanie(UserBaseBeanie):
-    # tokens: List[Link[TokenBeanie]] = Field(default_factory=list)
+class User(UserBase):
+    # tokens: List[Token] = Field(default_factory=list)
     # current_access_token: Optional[str] = None
     is_active: bool = True
     is_verified: bool = False
@@ -196,65 +193,11 @@ class UserBeanie(UserBaseBeanie):
     registration_date: Optional[str] = None
     password: str
 
-    class Settings:
-        name = "users"  # Collection name
-        use_revision = True  # Track document revisions
-
     @field_validator("password", mode="before")
     def hash_password(cls, v):
         # check that the password is hashed
         if v.startswith("$2b$"):
             return v
-
-    def turn_to_userbase(self):
-        model_dump = self.model_dump()
-        userbase = UserBaseBeanie(
-            email=model_dump["email"], is_admin=model_dump["is_admin"], groups=model_dump["groups"]
-        )
-        return userbase
-
-    def turn_to_userbasegroupless(self):
-        model_dump = self.model_dump()
-        userbase = UserBaseGropLessBeanie(
-            email=model_dump["email"], is_admin=model_dump["is_admin"]
-        )
-        return userbase
-
-
-class User(UserBase):
-    tokens: List[Token] = Field(default_factory=list)
-    current_access_token: Optional[str] = None
-    is_active: bool = True
-    is_verified: bool = False
-    last_login: Optional[str] = None
-    registration_date: Optional[str] = None
-    password: str
-    # model_config = ConfigDict(
-
-    # )
-
-    @field_validator("password", mode="before")
-    def hash_password(cls, v):
-        # check that the password is hashed
-        if v.startswith("$2b$"):
-            return v
-
-    # class ConfigDict:
-    #     json_encoders = {ObjectId: lambda v: str(v)}
-
-    def __hash__(self):
-        # Hash based on the unique user_id
-        return hash(self.id)
-
-    def __eq__(self, other):
-        # Equality based on the unique user_id
-        if isinstance(other, User):
-            return all(
-                getattr(self, field) == getattr(other, field)
-                for field in self.model_fields.keys()
-                if field not in ["user_id", "registration_time"]
-            )
-        return False
 
     def turn_to_userbase(self):
         model_dump = self.model_dump()
@@ -267,6 +210,11 @@ class User(UserBase):
         model_dump = self.model_dump()
         userbase = UserBaseGroupLess(email=model_dump["email"], is_admin=model_dump["is_admin"])
         return userbase
+
+
+class UserBeanie(User, Document):
+    class Settings:
+        name = "users"
 
 
 class Permission(BaseModel):

@@ -7,6 +7,7 @@ from depictio_models.models.base import MongoModel
 from depictio_models.models.data_collections_types.jbrowse import DCJBrowse2Config
 from depictio_models.models.data_collections_types.table import DCTableConfig
 from depictio_models.utils import get_depictio_context
+from depictio_models.logging import logger
 
 
 class WildcardRegexBase(BaseModel):
@@ -85,10 +86,13 @@ class Scan(BaseModel):
     @model_validator(mode="before")
     def validate_join(cls, values):
         type_value = values.get("mode").lower()  # normalize to lowercase for comparison
+        scan_parameters = values.get("scan_parameters")
         if type_value == "recursive":
-            values["scan_parameters"] = ScanRecursive(**values["scan_parameters"])
+            if not isinstance(scan_parameters, ScanRecursive):
+                values["scan_parameters"] = ScanRecursive(**values["scan_parameters"])
         elif type_value == "single":
-            values["scan_parameters"] = ScanSingle(**values["scan_parameters"])
+            if not isinstance(scan_parameters, ScanSingle):
+                values["scan_parameters"] = ScanSingle(**values["scan_parameters"])
         return values
 
 
@@ -126,10 +130,19 @@ class DataCollectionConfig(MongoModel):
     @model_validator(mode="before")
     def validate_join(cls, values):
         type_value = values.get("type").lower()  # normalize to lowercase for comparison
+        logger.debug(f"Validating join for type: {type_value}")
+
+        # Get the dc_specific_properties
+        dc_specific_properties = values.get("dc_specific_properties")
+
         if type_value == "table":
-            values["dc_specific_properties"] = DCTableConfig(**values["dc_specific_properties"])
+            # Check if it's already a DCTableConfig instance
+            if not isinstance(dc_specific_properties, DCTableConfig):
+                values["dc_specific_properties"] = DCTableConfig(**dc_specific_properties)
         elif type_value == "jbrowse2":
-            values["dc_specific_properties"] = DCJBrowse2Config(**values["dc_specific_properties"])
+            # Check if it's already a DCJBrowse2Config instance
+            if not isinstance(dc_specific_properties, DCJBrowse2Config):
+                values["dc_specific_properties"] = DCJBrowse2Config(**dc_specific_properties)
         return values
 
 

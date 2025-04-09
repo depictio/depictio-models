@@ -62,6 +62,7 @@ class WorkflowDataLocation(MongoModel):
                 return values
             except re.error:
                 raise ValueError("Invalid runs_regex pattern")
+        return values
 
 
 class WorkflowConfig(MongoModel):
@@ -175,33 +176,33 @@ class WorkflowEngine(BaseModel):
     class Config:
         extra = "forbid"  # Reject unexpected fields
 
-    @field_validator("name", mode="before")
-    def validate_workflow_engine_value(cls, value):
-        allowed_values = [
-            "snakemake",
-            "nextflow",
-            "toil",
-            "cwltool",
-            "arvados",
-            "streamflow",
-            "galaxy",
-            "airflow",
-            "dagster",
-            "python",
-            "shell",
-            "r",
-            "julia",
-            "matlab",
-            "perl",
-            "java",
-            "c",
-            "c++",
-            "go",
-            "rust",
-        ]
-        if value not in allowed_values:
-            raise ValueError(f"workflow_engine must be one of {allowed_values}")
-        return value
+    # @field_validator("name", mode="before")
+    # def validate_workflow_engine_value(cls, value):
+    #     allowed_values = [
+    #         "snakemake",
+    #         "nextflow",
+    #         "toil",
+    #         "cwltool",
+    #         "arvados",
+    #         "streamflow",
+    #         "galaxy",
+    #         "airflow",
+    #         "dagster",
+    #         "python",
+    #         "shell",
+    #         "r",
+    #         "julia",
+    #         "matlab",
+    #         "perl",
+    #         "java",
+    #         "c",
+    #         "c++",
+    #         "go",
+    #         "rust",
+    #     ]
+    #     if value not in allowed_values:
+    #         raise ValueError(f"workflow_engine must be one of {allowed_values}")
+    #     return value
 
 
 class WorkflowCatalog(BaseModel):
@@ -230,7 +231,7 @@ class Workflow(MongoModel):
     catalog: Optional[WorkflowCatalog] = None
     workflow_tag: Optional[str] = None
     # description: Optional[Description] = None
-    repository_url: Optional[str]
+    repository_url: Optional[str] = None
     data_collections: List[DataCollection]
     runs: Optional[Dict[str, WorkflowRun]] = dict()
     config: Optional[WorkflowConfig] = Field(default_factory=WorkflowConfig)
@@ -245,19 +246,19 @@ class Workflow(MongoModel):
             raise ValueError("version must be a string")
         return value
 
-    @model_validator(mode="before")
-    @classmethod
-    def generate_workflow_tag(cls, values):
-        engine = values.get("engine")
-        name = values.get("name")
-        catalog = values.get("catalog")
-        logger.debug(f"Engine: {engine}, Name: {name}, Catalog: {catalog}")
-        values["workflow_tag"] = f"{engine.get('name')}/{name}"
-        if catalog:
-            catalog_name = catalog.get("name")
-            if catalog_name == "nf-core":
-                values["workflow_tag"] = f"{catalog_name}/{name}"
-        return values
+    # @model_validator(mode="before")
+    # @classmethod
+    # def generate_workflow_tag(cls, values):
+    #     engine = values.get("engine")
+    #     name = values.get("name")
+    #     catalog = values.get("catalog")
+    #     logger.debug(f"Engine: {engine}, Name: {name}, Catalog: {catalog}")
+    #     values["workflow_tag"] = f"{engine.get('name')}/{name}"
+    #     if catalog:
+    #         catalog_name = catalog.get("name")
+    #         if catalog_name == "nf-core":
+    #             values["workflow_tag"] = f"{catalog_name}/{name}"
+    #     return values
 
     def __eq__(self, other):
         if isinstance(other, Workflow):
@@ -280,21 +281,23 @@ class Workflow(MongoModel):
             raise ValueError("engine is required")
         return value
 
-    @field_validator("repository_url", mode="before")
-    def validate_repository(cls, value):
-        if not re.match(r"^(https?|git)://", value):
-            raise ValueError("Invalid repository URL")
-        return value
+    # @field_validator("repository_url", mode="before")
+    # def validate_repository(cls, value):
+    #     if not value:
+    #         return None
+    #     if not re.match(r"^(https?|git)://", value):
+    #         raise ValueError("Invalid repository URL")
+    #     return value
 
-    @model_validator(mode="before")
-    def set_workflow_tag(cls, values):
-        # print(f"Received values: {values}")
+    # @model_validator(mode="before")
+    # def set_workflow_tag(cls, values):
+    #     # print(f"Received values: {values}")
 
-        engine = values.get("engine")
-        name = values.get("name")
-        if engine and name:
-            values["workflow_tag"] = f"{engine}/{name}"
-        return values
+    #     engine = values.get("engine")
+    #     name = values.get("name")
+    #     if engine and name:
+    #         values["workflow_tag"] = f"{engine}/{name}"
+    #     return values
 
     @field_validator("data_collections", mode="before")
     def validate_data_collections(cls, value):

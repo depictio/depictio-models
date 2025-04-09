@@ -259,7 +259,13 @@ class TestTokenBeanie:
         assert response_dict["token_type"] == "bearer"
         # expires_in should be close to 3600 seconds (1 hour)
         # convert datetime to seconds
-        expire_in_secs = int((response_dict["expire_datetime"] - datetime.now()).total_seconds())
+        print(f"Expire datetime: {response_dict['expire_datetime']}")
+        # Convert datetime back to datetime object
+        expire_datetime = datetime.fromisoformat(response_dict["expire_datetime"])
+        print(f"Expire datetime: {expire_datetime}")
+        # Calculate the difference in seconds
+        expire_in_secs = int((expire_datetime - datetime.now()).total_seconds())
+        # expire_in_secs = int((response_dict["expire_datetime"] - datetime.now()).total_seconds())
         print(f"Expire in seconds: {expire_in_secs}")
         assert 3500 < expire_in_secs < 3600
 
