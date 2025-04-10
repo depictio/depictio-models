@@ -629,7 +629,7 @@ class TestUserBeanie:
         assert "user2@example.com" in emails
 
         # Test filtering by is_admin
-        admin_users = await UserBeanie.find(UserBeanie.is_admin).to_list()
+        admin_users = await UserBeanie.find(UserBeanie.is_admin == True).to_list()  # noqa: E712
         assert len(admin_users) == 1
         assert admin_users[0].email == "user2@example.com"
 
