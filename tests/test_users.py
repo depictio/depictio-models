@@ -4,7 +4,7 @@ from mongomock_motor import AsyncMongoMockClient
 from pydantic import ValidationError
 import pytest
 
-from depictio_models.models.users import TokenData, Token, TokenBeanie
+from depictio_models.models.users import TokenData, Token, TokenBeanie, TokenBase
 
 
 # Example of a test using AsyncMongoMockClient
@@ -315,3 +315,102 @@ class TestTokenBeanie:
         # Should find only the expired token
         assert len(expired_tokens) == 1
         assert expired_tokens[0].access_token == "expired_token"
+
+
+# ---------------------
+# Tests for TokenBase
+# ---------------------
+
+
+class TestTokenBase:
+    def test_token_base_creation(self):
+        """Test creating a complete TokenBase instance."""
+        user_id = PydanticObjectId()
+        future_time = datetime.now() + timedelta(hours=1)
+
+        token_base = TokenBase(
+            user_id=user_id,
+            access_token="ValidToken123",
+            expire_datetime=future_time,
+            name="Test Token",
+        )
+
+        assert token_base.user_id == user_id
+        assert token_base.access_token == "ValidToken123"
+        assert token_base.expire_datetime == future_time
+        assert token_base.name == "Test Token"
+        assert token_base.token_type == "bearer"
+        assert token_base.token_lifetime == "short-lived"
+        assert token_base.logged_in is False
+
+    def test_token_base_serializers(self):
+        """Test serialization methods of TokenBase."""
+        user_id = PydanticObjectId()
+        future_time = datetime.now() + timedelta(hours=1)
+        creation_time = datetime.now()
+
+        token_base = TokenBase(
+            user_id=user_id,
+            access_token="ValidToken123",
+            expire_datetime=future_time,
+            created_at=creation_time,
+        )
+
+        # Test id serializer if applicable
+        if hasattr(token_base, "id"):
+            assert isinstance(token_base.serialize_id(token_base.id), str)
+
+        # Test user_id serializer
+        assert isinstance(token_base.serialize_user_id(user_id), str)
+
+        # Test datetime serializers
+        assert token_base.serialize_expire_datetime(future_time) == future_time.strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+        assert token_base.serialize_created_at(creation_time) == creation_time.strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+
+    def test_to_response_dict(self):
+        """Test the to_response_dict method returns correct format."""
+        user_id = PydanticObjectId()
+        future_time = datetime.now() + timedelta(hours=1)
+
+        token_base = TokenBase(
+            user_id=user_id, access_token="ValidToken123", expire_datetime=future_time
+        )
+
+        response = token_base.to_response_dict()
+
+        assert "id" in response
+        assert "user_id" in response
+        assert "access_token" in response
+        assert "token_type" in response
+        assert "expires_in" in response
+        assert "expires_at" in response
+        assert "created_at" in response
+
+        # Check that expires_in is calculated correctly
+        assert isinstance(response["expires_in"], int)
+        # Allow 1 second tolerance for test execution time
+        expected_seconds = int((future_time - datetime.now()).total_seconds())
+        assert abs(response["expires_in"] - expected_seconds) <= 1
+
+        assert str(response["user_id"]) == str(user_id)
+        assert response["access_token"] == "ValidToken123"
+        assert response["token_type"] == "bearer"
+
+    def test_default_values(self):
+        """Test default values are set correctly."""
+        user_id = PydanticObjectId()
+        future_time = datetime.now() + timedelta(hours=1)
+
+        token_base = TokenBase(
+            user_id=user_id, access_token="ValidToken123", expire_datetime=future_time
+        )
+
+        assert token_base.token_type == "bearer"
+        assert token_base.token_lifetime == "short-lived"
+        assert token_base.logged_in is False
+        assert token_base.name is None
+        assert isinstance(token_base.created_at, datetime)
