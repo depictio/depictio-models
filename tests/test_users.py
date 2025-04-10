@@ -4,7 +4,19 @@ from mongomock_motor import AsyncMongoMockClient
 from pydantic import ValidationError
 import pytest
 
-from depictio_models.models.users import TokenData, Token, TokenBeanie
+from depictio_models.models.users import (
+    Permission,
+    TokenData,
+    Token,
+    TokenBeanie,
+    TokenBase,
+    UserBase,
+    UserBaseGroupLess,
+    User,
+    UserBeanie,
+    Group,
+    GroupBeanie,
+)
 
 
 # Example of a test using AsyncMongoMockClient
@@ -315,3 +327,562 @@ class TestTokenBeanie:
         # Should find only the expired token
         assert len(expired_tokens) == 1
         assert expired_tokens[0].access_token == "expired_token"
+
+
+# ---------------------
+# Tests for TokenBase
+# ---------------------
+
+
+class TestTokenBase:
+    def test_token_base_creation(self):
+        """Test creating a complete TokenBase instance."""
+        user_id = PydanticObjectId()
+        future_time = datetime.now() + timedelta(hours=1)
+
+        token_base = TokenBase(
+            user_id=user_id,
+            access_token="ValidToken123",
+            expire_datetime=future_time,
+            name="Test Token",
+        )
+
+        assert token_base.user_id == user_id
+        assert token_base.access_token == "ValidToken123"
+        assert token_base.expire_datetime == future_time
+        assert token_base.name == "Test Token"
+        assert token_base.token_type == "bearer"
+        assert token_base.token_lifetime == "short-lived"
+        assert token_base.logged_in is False
+
+    def test_token_base_serializers(self):
+        """Test serialization methods of TokenBase."""
+        user_id = PydanticObjectId()
+        future_time = datetime.now() + timedelta(hours=1)
+        creation_time = datetime.now()
+
+        token_base = TokenBase(
+            user_id=user_id,
+            access_token="ValidToken123",
+            expire_datetime=future_time,
+            created_at=creation_time,
+        )
+
+        # Test id serializer if applicable
+        if hasattr(token_base, "id"):
+            assert isinstance(token_base.serialize_id(token_base.id), str)
+
+        # Test user_id serializer
+        assert isinstance(token_base.serialize_user_id(user_id), str)
+
+        # Test datetime serializers
+        assert token_base.serialize_expire_datetime(future_time) == future_time.strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+        assert token_base.serialize_created_at(creation_time) == creation_time.strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+
+    def test_to_response_dict(self):
+        """Test the to_response_dict method returns correct format."""
+        user_id = PydanticObjectId()
+        future_time = datetime.now() + timedelta(hours=1)
+
+        token_base = TokenBase(
+            user_id=user_id, access_token="ValidToken123", expire_datetime=future_time
+        )
+
+        response = token_base.to_response_dict()
+
+        assert "id" in response
+        assert "user_id" in response
+        assert "access_token" in response
+        assert "token_type" in response
+        assert "expires_in" in response
+        assert "expires_at" in response
+        assert "created_at" in response
+
+        # Check that expires_in is calculated correctly
+        assert isinstance(response["expires_in"], int)
+        # Allow 1 second tolerance for test execution time
+        expected_seconds = int((future_time - datetime.now()).total_seconds())
+        assert abs(response["expires_in"] - expected_seconds) <= 1
+
+        assert str(response["user_id"]) == str(user_id)
+        assert response["access_token"] == "ValidToken123"
+        assert response["token_type"] == "bearer"
+
+    def test_default_values(self):
+        """Test default values are set correctly."""
+        user_id = PydanticObjectId()
+        future_time = datetime.now() + timedelta(hours=1)
+
+        token_base = TokenBase(
+            user_id=user_id, access_token="ValidToken123", expire_datetime=future_time
+        )
+
+        assert token_base.token_type == "bearer"
+        assert token_base.token_lifetime == "short-lived"
+        assert token_base.logged_in is False
+        assert token_base.name is None
+        assert isinstance(token_base.created_at, datetime)
+
+
+class TestGroup:
+    def test_group_creation(self):
+        """Test creating a Group instance."""
+        group = Group(name="Test Group")
+
+        assert group.name == "Test Group"
+
+    def test_group_serialization(self):
+        """Test Group serialization."""
+        group = Group(name="Test Group")
+        group_dict = group.model_dump()
+
+        assert group_dict["name"] == "Test Group"
+
+
+class TestUserBaseGroupLess:
+    def test_user_base_group_less_creation(self):
+        """Test creating a UserBaseGroupLess instance."""
+        user = UserBaseGroupLess(email="test@example.com")
+
+        assert user.email == "test@example.com"
+        assert user.is_admin is False  # Default value
+
+    def test_user_base_group_less_admin_flag(self):
+        """Test setting admin flag on UserBaseGroupLess."""
+        user = UserBaseGroupLess(email="admin@example.com", is_admin=True)
+
+        assert user.email == "admin@example.com"
+        assert user.is_admin is True
+
+    def test_user_base_group_less_invalid_email(self):
+        """Test validation of email in UserBaseGroupLess."""
+        with pytest.raises(ValidationError):
+            UserBaseGroupLess(email="invalid-email")
+
+
+class TestUserBase:
+    def test_user_base_creation(self):
+        """Test creating a UserBase instance."""
+        groups = [Group(name="Group 1"), Group(name="Group 2")]
+        user = UserBase(email="test@example.com", groups=groups)
+
+        assert user.email == "test@example.com"
+        assert user.is_admin is False
+        assert len(user.groups) == 2
+        assert user.groups[0].name == "Group 1"
+        assert user.groups[1].name == "Group 2"
+
+    def test_user_base_with_admin_flag(self):
+        """Test creating UserBase with admin flag."""
+        groups = [Group(name="Admin Group")]
+        user = UserBase(email="admin@example.com", is_admin=True, groups=groups)
+
+        assert user.email == "admin@example.com"
+        assert user.is_admin is True
+        assert len(user.groups) == 1
+        assert user.groups[0].name == "Admin Group"
+
+    def test_user_base_empty_groups(self):
+        """Test creating UserBase with empty groups list."""
+        user = UserBase(email="test@example.com", groups=[])
+
+        assert user.email == "test@example.com"
+        assert len(user.groups) == 0
+
+
+class TestUser:
+    def test_user_creation(self):
+        """Test creating a User instance."""
+        groups = [Group(name="Group 1")]
+        user = User(
+            email="test@example.com",
+            groups=groups,
+            password="$2b$12$abcdefghijklmnopqrstuvwxyz",
+            is_active=True,
+            is_verified=False,
+        )
+
+        assert user.email == "test@example.com"
+        assert user.is_admin is False
+        assert len(user.groups) == 1
+        assert user.groups[0].name == "Group 1"
+        assert user.password == "$2b$12$abcdefghijklmnopqrstuvwxyz"
+        assert user.is_active is True
+        assert user.is_verified is False
+        assert user.last_login is None
+        assert user.registration_date is None
+
+    def test_user_password_validation(self):
+        """Test password validation in User."""
+        groups = [Group(name="Group 1")]
+
+        # Test with already hashed password
+        user = User(
+            email="test@example.com", groups=groups, password="$2b$12$abcdefghijklmnopqrstuvwxyz"
+        )
+        assert user.password == "$2b$12$abcdefghijklmnopqrstuvwxyz"
+
+        # Test with unhashed password - should fail validation
+        with pytest.raises(ValueError):
+            User(email="test@example.com", groups=groups, password="plaintext_password")
+
+    def test_turn_to_userbase(self):
+        """Test turn_to_userbase method."""
+        groups = [Group(name="Group 1")]
+        user = User(
+            email="test@example.com",
+            groups=groups,
+            password="$2b$12$abcdefghijklmnopqrstuvwxyz",
+            is_admin=True,
+        )
+
+        userbase = user.turn_to_userbase()
+
+        assert isinstance(userbase, UserBase)
+        assert userbase.email == "test@example.com"
+        assert userbase.is_admin is True
+        assert len(userbase.groups) == 1
+        assert userbase.groups[0].name == "Group 1"
+
+    def test_turn_to_userbasegroupless(self):
+        """Test turn_to_userbasegroupless method."""
+        groups = [Group(name="Group 1")]
+        user = User(
+            email="test@example.com",
+            groups=groups,
+            password="$2b$12$abcdefghijklmnopqrstuvwxyz",
+            is_admin=True,
+        )
+
+        userbasegroupless = user.turn_to_userbasegroupless()
+
+        assert isinstance(userbasegroupless, UserBaseGroupLess)
+        assert userbasegroupless.email == "test@example.com"
+        assert userbasegroupless.is_admin is True
+        assert not hasattr(userbasegroupless, "groups")
+
+
+@pytest.mark.asyncio
+class TestUserBeanie:
+    async def test_user_beanie_creation(self):
+        """Test creating and inserting a UserBeanie document."""
+        # Initialize Beanie directly in the test
+        client = AsyncMongoMockClient()
+        await init_beanie(database=client.test_db, document_models=[UserBeanie, GroupBeanie])
+
+        # Create a user instance
+        user = UserBeanie(
+            email="test@example.com",
+            groups=[Group(name="Test Group")],
+            password="$2b$12$abcdefghijklmnopqrstuvwxyz",
+        )
+
+        # Insert the document
+        await user.save()
+
+        # Retrieve the document
+        retrieved_user = await UserBeanie.find_one(UserBeanie.email == "test@example.com")
+
+        assert retrieved_user is not None
+        assert retrieved_user.email == "test@example.com"
+        assert retrieved_user.is_admin is False
+        assert len(retrieved_user.groups) == 1
+        assert retrieved_user.groups[0].name == "Test Group"
+        assert retrieved_user.password == "$2b$12$abcdefghijklmnopqrstuvwxyz"
+        assert retrieved_user.is_active is True
+        assert retrieved_user.is_verified is False
+
+    async def test_user_beanie_multiple_users(self):
+        """Test creating and retrieving multiple users."""
+        # Initialize Beanie directly in the test
+        client = AsyncMongoMockClient()
+        await init_beanie(database=client.test_db, document_models=[UserBeanie])
+
+        # Create two users
+        user1 = UserBeanie(
+            email="user1@example.com",
+            groups=[Group(name="Group 1")],
+            password="$2b$12$abcdefghijklmnopqrstuvwxyz",
+        )
+        user2 = UserBeanie(
+            email="user2@example.com",
+            groups=[Group(name="Group 2")],
+            password="$2b$12$abcdefghijklmnopqrstuvwxyz",
+            is_admin=True,
+        )
+
+        await user1.save()
+        await user2.save()
+
+        # Retrieve users using Beanie's query interface
+        all_users = await UserBeanie.find().to_list()
+
+        assert len(all_users) == 2
+
+        # Convert emails to a list for easier comparison
+        emails = [user.email for user in all_users]
+        assert "user1@example.com" in emails
+        assert "user2@example.com" in emails
+
+        # Test filtering by is_admin
+        admin_users = await UserBeanie.find(UserBeanie.is_admin == True).to_list()  # noqa: E712
+        assert len(admin_users) == 1
+        assert admin_users[0].email == "user2@example.com"
+
+    async def test_user_beanie_conversion_methods(self):
+        """Test the conversion methods from UserBeanie."""
+        # Initialize Beanie directly in the test
+        client = AsyncMongoMockClient()
+        await init_beanie(database=client.test_db, document_models=[UserBeanie])
+
+        # Create a user instance
+        user = UserBeanie(
+            email="admin@example.com",
+            groups=[Group(name="Admin Group")],
+            password="$2b$12$abcdefghijklmnopqrstuvwxyz",
+            is_admin=True,
+        )
+
+        # Insert the document
+        await user.save()
+
+        # Retrieve the document
+        retrieved_user = await UserBeanie.find_one(UserBeanie.email == "admin@example.com")
+
+        # Test turn_to_userbase method
+        userbase = retrieved_user.turn_to_userbase()
+        assert isinstance(userbase, UserBase)
+        assert userbase.email == "admin@example.com"
+        assert userbase.is_admin is True
+        assert len(userbase.groups) == 1
+        assert userbase.groups[0].name == "Admin Group"
+
+        # Test turn_to_userbasegroupless method
+        userbasegroupless = retrieved_user.turn_to_userbasegroupless()
+        assert isinstance(userbasegroupless, UserBaseGroupLess)
+        assert userbasegroupless.email == "admin@example.com"
+        assert userbasegroupless.is_admin is True
+        assert not hasattr(userbasegroupless, "groups")
+
+
+@pytest.mark.asyncio
+class TestGroupBeanie:
+    async def test_group_beanie_creation(self):
+        """Test creating and inserting a GroupBeanie document."""
+        # Initialize Beanie directly in the test
+        client = AsyncMongoMockClient()
+        await init_beanie(database=client.test_db, document_models=[GroupBeanie])
+
+        # Create a group instance
+        group = GroupBeanie(name="Test Group")
+
+        # Insert the document
+        await group.save()
+
+        # Retrieve the document
+        retrieved_group = await GroupBeanie.find_one(GroupBeanie.name == "Test Group")
+
+        assert retrieved_group is not None
+        assert retrieved_group.name == "Test Group"
+
+    async def test_group_beanie_multiple_groups(self):
+        """Test creating and retrieving multiple groups."""
+        # Initialize Beanie directly in the test
+        client = AsyncMongoMockClient()
+        await init_beanie(database=client.test_db, document_models=[GroupBeanie])
+
+        # Create multiple groups
+        group1 = GroupBeanie(name="Group 1")
+        group2 = GroupBeanie(name="Group 2")
+        group3 = GroupBeanie(name="Group 3")
+
+        await group1.save()
+        await group2.save()
+        await group3.save()
+
+        # Retrieve all groups
+        all_groups = await GroupBeanie.find().to_list()
+
+        assert len(all_groups) == 3
+
+        # Convert names to a list for easier comparison
+        group_names = [group.name for group in all_groups]
+        assert "Group 1" in group_names
+        assert "Group 2" in group_names
+        assert "Group 3" in group_names
+
+        # Test filtering by name
+        filtered_groups = await GroupBeanie.find(GroupBeanie.name == "Group 2").to_list()
+        assert len(filtered_groups) == 1
+        assert filtered_groups[0].name == "Group 2"
+
+    async def test_group_beanie_update(self):
+        """Test updating a GroupBeanie document."""
+        # Initialize Beanie directly in the test
+        client = AsyncMongoMockClient()
+        await init_beanie(database=client.test_db, document_models=[GroupBeanie])
+
+        # Create a group
+        group = GroupBeanie(name="Original Name")
+        await group.save()
+
+        # Retrieve and update the group
+        retrieved_group = await GroupBeanie.find_one(GroupBeanie.name == "Original Name")
+        retrieved_group.name = "Updated Name"
+        await retrieved_group.save()
+
+        # Check the update was successful
+        updated_group = await GroupBeanie.find_one(GroupBeanie.name == "Updated Name")
+        assert updated_group is not None
+        assert updated_group.name == "Updated Name"
+
+        # Ensure the old name doesn't exist
+        old_group = await GroupBeanie.find_one(GroupBeanie.name == "Original Name")
+        assert old_group is None
+
+
+# ---------------------
+# Tests for Permission
+# ---------------------
+class TestPermission:
+    def test_permission_creation_empty(self):
+        """Test creating a Permission with default empty lists."""
+        permission = Permission()
+
+        assert permission.owners == []
+        assert permission.editors == []
+        assert permission.viewers == []
+
+        # Test dict method with empty lists
+        perm_dict = permission.dict()
+        assert perm_dict == {"owners": [], "editors": [], "viewers": []}
+
+    def test_permission_with_users(self):
+        """Test creating a Permission with valid users."""
+        # Create users for testing
+        user1 = UserBase(email="owner@example.com", is_admin=True, groups=[Group(name="Admin")])
+        user2 = UserBase(email="editor@example.com", is_admin=False, groups=[Group(name="Editor")])
+        user3 = UserBase(email="viewer@example.com", is_admin=False, groups=[Group(name="Viewer")])
+
+        # Add ID attributes to simulate DB objects
+        user1.id = "user1_id"
+        user2.id = "user2_id"
+        user3.id = "user3_id"
+
+        permission = Permission(owners=[user1], editors=[user2], viewers=[user3])
+
+        assert len(permission.owners) == 1
+        assert permission.owners[0].email == "owner@example.com"
+        assert len(permission.editors) == 1
+        assert permission.editors[0].email == "editor@example.com"
+        assert len(permission.viewers) == 1
+        assert permission.viewers[0].email == "viewer@example.com"
+
+    def test_permission_with_wildcard_viewer(self):
+        """Test Permission with wildcard viewer."""
+        # Create users for testing
+        user1 = UserBase(email="owner@example.com", is_admin=True, groups=[Group(name="Admin")])
+        user1.id = "user1_id"
+
+        permission = Permission(
+            owners=[user1],
+            viewers=["*"],  # Wildcard viewer
+        )
+
+        assert len(permission.owners) == 1
+        assert len(permission.editors) == 0
+        assert len(permission.viewers) == 1
+        assert permission.viewers[0] == "*"
+
+        # Test dict method with wildcard
+        perm_dict = permission.dict()
+        assert perm_dict["viewers"] == ["*"]
+
+    def test_permission_from_dict(self):
+        """Test creating a Permission from dictionaries."""
+        owner = UserBase(
+            **{
+                "id": PydanticObjectId(),
+                "email": "owner@example.com",
+                "is_admin": True,
+                "groups": [{"name": "Admin"}],
+            }
+        )
+
+        editor = UserBase(
+            **{
+                "id": PydanticObjectId(),
+                "email": "editor@example.com",
+                "is_admin": False,
+                "groups": [{"name": "Editor"}],
+            }
+        )
+
+        permission = Permission(owners=[owner], editors=[editor], viewers=["*"])
+
+        assert len(permission.owners) == 1
+        assert isinstance(permission.owners[0], UserBase)
+        assert permission.owners[0].email == "owner@example.com"
+
+        assert len(permission.editors) == 1
+        assert isinstance(permission.editors[0], UserBase)
+        assert permission.editors[0].email == "editor@example.com"
+
+    def test_permission_unique_validation(self):
+        """Test validation that prevents users from being in multiple roles."""
+        # Create users with the same ID to test validation
+        user = UserBase(email="user@example.com", is_admin=True, groups=[Group(name="Group")])
+        user.id = "same_id"
+
+        # Test user in owners and editors
+        with pytest.raises(ValidationError, match="A User cannot be both an owner and an editor"):
+            Permission(owners=[user], editors=[user])
+
+        # Test user in owners and viewers
+        with pytest.raises(ValidationError, match="A User cannot be both an owner and a viewer"):
+            Permission(owners=[user], viewers=[user])
+
+        # Test user in editors and viewers
+        with pytest.raises(ValidationError, match="A User cannot be both an editor and a viewer"):
+            Permission(editors=[user], viewers=[user])
+
+    def test_permission_invalid_types(self):
+        """Test validation of invalid types in lists."""
+        # Test invalid type in owners
+        with pytest.raises(ValueError):
+            Permission(owners=[123])
+
+        # Test invalid type in editors
+        with pytest.raises(ValueError):
+            Permission(editors=["not_a_wildcard"])
+
+        # Test non-list input
+        with pytest.raises(ValueError, match="Expected a list"):
+            Permission(owners="not_a_list")
+
+    def test_permission_dict_method(self):
+        """Test the dict method for correct serialization."""
+        user1 = UserBase(email="owner@example.com", is_admin=True, groups=[Group(name="Admin")])
+        user2 = UserBase(email="editor@example.com", is_admin=False, groups=[Group(name="Editor")])
+        user1.id = "user1_id"
+        user2.id = "user2_id"
+
+        permission = Permission(owners=[user1], editors=[user2], viewers=["*"])
+
+        perm_dict = permission.dict()
+
+        assert "owners" in perm_dict
+        assert "editors" in perm_dict
+        assert "viewers" in perm_dict
+
+        assert len(perm_dict["owners"]) == 1
+        assert perm_dict["owners"][0]["email"] == "owner@example.com"
+
+        assert len(perm_dict["editors"]) == 1
+        assert perm_dict["editors"][0]["email"] == "editor@example.com"
+
+        assert perm_dict["viewers"] == ["*"]
