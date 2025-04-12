@@ -11,7 +11,7 @@ from depictio_models.models.users import (
     TokenBeanie,
     TokenBase,
     UserBase,
-    UserBaseGroupLess,
+    # UserBaseGroupLess,
     User,
     UserBeanie,
     Group,
@@ -443,64 +443,67 @@ class TestGroup:
         assert group_dict["name"] == "Test Group"
 
 
-class TestUserBaseGroupLess:
-    def test_user_base_group_less_creation(self):
-        """Test creating a UserBaseGroupLess instance."""
-        user = UserBaseGroupLess(email="test@example.com")
+# class TestUserBaseGroupLess:
+#     def test_user_base_group_less_creation(self):
+#         """Test creating a UserBaseGroupLess instance."""
+#         user = UserBaseGroupLess(email="test@example.com")
 
-        assert user.email == "test@example.com"
-        assert user.is_admin is False  # Default value
+#         assert user.email == "test@example.com"
+#         assert user.is_admin is False  # Default value
 
-    def test_user_base_group_less_admin_flag(self):
-        """Test setting admin flag on UserBaseGroupLess."""
-        user = UserBaseGroupLess(email="admin@example.com", is_admin=True)
+#     def test_user_base_group_less_admin_flag(self):
+#         """Test setting admin flag on UserBaseGroupLess."""
+#         user = UserBaseGroupLess(email="admin@example.com", is_admin=True)
 
-        assert user.email == "admin@example.com"
-        assert user.is_admin is True
+#         assert user.email == "admin@example.com"
+#         assert user.is_admin is True
 
-    def test_user_base_group_less_invalid_email(self):
-        """Test validation of email in UserBaseGroupLess."""
-        with pytest.raises(ValidationError):
-            UserBaseGroupLess(email="invalid-email")
+#     def test_user_base_group_less_invalid_email(self):
+#         """Test validation of email in UserBaseGroupLess."""
+#         with pytest.raises(ValidationError):
+#             UserBaseGroupLess(email="invalid-email")
 
 
 class TestUserBase:
     def test_user_base_creation(self):
         """Test creating a UserBase instance."""
-        groups = [Group(name="Group 1"), Group(name="Group 2")]
-        user = UserBase(email="test@example.com", groups=groups)
+        # groups = [Group(name="Group 1"), Group(name="Group 2")]
+        user = UserBase(email="test@example.com")
+        # user = UserBase(email="test@example.com", groups=groups)
 
         assert user.email == "test@example.com"
         assert user.is_admin is False
-        assert len(user.groups) == 2
-        assert user.groups[0].name == "Group 1"
-        assert user.groups[1].name == "Group 2"
+        # assert len(user.groups) == 2
+        # assert user.groups[0].name == "Group 1"
+        # assert user.groups[1].name == "Group 2"
 
     def test_user_base_with_admin_flag(self):
         """Test creating UserBase with admin flag."""
-        groups = [Group(name="Admin Group")]
-        user = UserBase(email="admin@example.com", is_admin=True, groups=groups)
+        # groups = [Group(name="Admin Group")]
+        user = UserBase(email="admin@example.com", is_admin=True)
+        # user = UserBase(email="admin@example.com", is_admin=True, groups=groups)
 
         assert user.email == "admin@example.com"
         assert user.is_admin is True
-        assert len(user.groups) == 1
-        assert user.groups[0].name == "Admin Group"
+        # assert len(user.groups) == 1
+        # assert user.groups[0].name == "Admin Group"
 
     def test_user_base_empty_groups(self):
         """Test creating UserBase with empty groups list."""
-        user = UserBase(email="test@example.com", groups=[])
+        user = UserBase(email="test@example.com")
+        # user = UserBase(email="test@example.com", groups=[])
 
         assert user.email == "test@example.com"
-        assert len(user.groups) == 0
+        # assert len(user.groups) == 0
 
 
 class TestUser:
     def test_user_creation(self):
         """Test creating a User instance."""
-        groups = [Group(name="Group 1")]
+        # groups = [Group(name="Group 1")]
         user = User(
             email="test@example.com",
-            groups=groups,
+            # groups=groups,
             password="$2b$12$abcdefghijklmnopqrstuvwxyz",
             is_active=True,
             is_verified=False,
@@ -508,8 +511,8 @@ class TestUser:
 
         assert user.email == "test@example.com"
         assert user.is_admin is False
-        assert len(user.groups) == 1
-        assert user.groups[0].name == "Group 1"
+        # assert len(user.groups) == 1
+        # assert user.groups[0].name == "Group 1"
         assert user.password == "$2b$12$abcdefghijklmnopqrstuvwxyz"
         assert user.is_active is True
         assert user.is_verified is False
@@ -518,24 +521,27 @@ class TestUser:
 
     def test_user_password_validation(self):
         """Test password validation in User."""
-        groups = [Group(name="Group 1")]
+        # groups = [Group(name="Group 1")]
 
         # Test with already hashed password
         user = User(
-            email="test@example.com", groups=groups, password="$2b$12$abcdefghijklmnopqrstuvwxyz"
+            # email="test@example.com", groups=groups, password="$2b$12$abcdefghijklmnopqrstuvwxyz"
+            email="test@example.com",
+            password="$2b$12$abcdefghijklmnopqrstuvwxyz",
         )
         assert user.password == "$2b$12$abcdefghijklmnopqrstuvwxyz"
 
         # Test with unhashed password - should fail validation
         with pytest.raises(ValueError):
-            User(email="test@example.com", groups=groups, password="plaintext_password")
+            # User(email="test@example.com", groups=groups, password="plaintext_password")
+            User(email="test@example.com", password="plaintext_password")
 
     def test_turn_to_userbase(self):
         """Test turn_to_userbase method."""
-        groups = [Group(name="Group 1")]
+        # groups = [Group(name="Group 1")]
         user = User(
             email="test@example.com",
-            groups=groups,
+            # groups=groups,
             password="$2b$12$abcdefghijklmnopqrstuvwxyz",
             is_admin=True,
         )
@@ -545,25 +551,25 @@ class TestUser:
         assert isinstance(userbase, UserBase)
         assert userbase.email == "test@example.com"
         assert userbase.is_admin is True
-        assert len(userbase.groups) == 1
-        assert userbase.groups[0].name == "Group 1"
+        # assert len(userbase.groups) == 1
+        # assert userbase.groups[0].name == "Group 1"
 
-    def test_turn_to_userbasegroupless(self):
-        """Test turn_to_userbasegroupless method."""
-        groups = [Group(name="Group 1")]
-        user = User(
-            email="test@example.com",
-            groups=groups,
-            password="$2b$12$abcdefghijklmnopqrstuvwxyz",
-            is_admin=True,
-        )
+    # def test_turn_to_userbasegroupless(self):
+    #     """Test turn_to_userbasegroupless method."""
+    #     groups = [Group(name="Group 1")]
+    #     user = User(
+    #         email="test@example.com",
+    #         groups=groups,
+    #         password="$2b$12$abcdefghijklmnopqrstuvwxyz",
+    #         is_admin=True,
+    #     )
 
-        userbasegroupless = user.turn_to_userbasegroupless()
+    #     userbasegroupless = user.turn_to_userbasegroupless()
 
-        assert isinstance(userbasegroupless, UserBaseGroupLess)
-        assert userbasegroupless.email == "test@example.com"
-        assert userbasegroupless.is_admin is True
-        assert not hasattr(userbasegroupless, "groups")
+    #     assert isinstance(userbasegroupless, UserBaseGroupLess)
+    #     assert userbasegroupless.email == "test@example.com"
+    #     assert userbasegroupless.is_admin is True
+    #     assert not hasattr(userbasegroupless, "groups")
 
 
 @pytest.mark.asyncio
@@ -572,12 +578,12 @@ class TestUserBeanie:
         """Test creating and inserting a UserBeanie document."""
         # Initialize Beanie directly in the test
         client = AsyncMongoMockClient()
-        await init_beanie(database=client.test_db, document_models=[UserBeanie, GroupBeanie])
+        await init_beanie(database=client.test_db, document_models=[UserBeanie])
+        # await init_beanie(database=client.test_db, document_models=[UserBeanie, GroupBeanie])
 
         # Create a user instance
         user = UserBeanie(
             email="test@example.com",
-            groups=[Group(name="Test Group")],
             password="$2b$12$abcdefghijklmnopqrstuvwxyz",
         )
 
@@ -590,8 +596,8 @@ class TestUserBeanie:
         assert retrieved_user is not None
         assert retrieved_user.email == "test@example.com"
         assert retrieved_user.is_admin is False
-        assert len(retrieved_user.groups) == 1
-        assert retrieved_user.groups[0].name == "Test Group"
+        # assert len(retrieved_user.groups) == 1
+        # assert retrieved_user.groups[0].name == "Test Group"
         assert retrieved_user.password == "$2b$12$abcdefghijklmnopqrstuvwxyz"
         assert retrieved_user.is_active is True
         assert retrieved_user.is_verified is False
@@ -605,12 +611,10 @@ class TestUserBeanie:
         # Create two users
         user1 = UserBeanie(
             email="user1@example.com",
-            groups=[Group(name="Group 1")],
             password="$2b$12$abcdefghijklmnopqrstuvwxyz",
         )
         user2 = UserBeanie(
             email="user2@example.com",
-            groups=[Group(name="Group 2")],
             password="$2b$12$abcdefghijklmnopqrstuvwxyz",
             is_admin=True,
         )
@@ -642,7 +646,6 @@ class TestUserBeanie:
         # Create a user instance
         user = UserBeanie(
             email="admin@example.com",
-            groups=[Group(name="Admin Group")],
             password="$2b$12$abcdefghijklmnopqrstuvwxyz",
             is_admin=True,
         )
@@ -658,15 +661,15 @@ class TestUserBeanie:
         assert isinstance(userbase, UserBase)
         assert userbase.email == "admin@example.com"
         assert userbase.is_admin is True
-        assert len(userbase.groups) == 1
-        assert userbase.groups[0].name == "Admin Group"
+        # assert len(userbase.groups) == 1
+        # assert userbase.groups[0].name == "Admin Group"
 
-        # Test turn_to_userbasegroupless method
-        userbasegroupless = retrieved_user.turn_to_userbasegroupless()
-        assert isinstance(userbasegroupless, UserBaseGroupLess)
-        assert userbasegroupless.email == "admin@example.com"
-        assert userbasegroupless.is_admin is True
-        assert not hasattr(userbasegroupless, "groups")
+        # # Test turn_to_userbasegroupless method
+        # userbasegroupless = retrieved_user.turn_to_userbasegroupless()
+        # assert isinstance(userbasegroupless, UserBaseGroupLess)
+        # assert userbasegroupless.email == "admin@example.com"
+        # assert userbasegroupless.is_admin is True
+        # assert not hasattr(userbasegroupless, "groups")
 
 
 @pytest.mark.asyncio
@@ -764,9 +767,18 @@ class TestPermission:
     def test_permission_with_users(self):
         """Test creating a Permission with valid users."""
         # Create users for testing
-        user1 = UserBase(email="owner@example.com", is_admin=True, groups=[Group(name="Admin")])
-        user2 = UserBase(email="editor@example.com", is_admin=False, groups=[Group(name="Editor")])
-        user3 = UserBase(email="viewer@example.com", is_admin=False, groups=[Group(name="Viewer")])
+        user1 = UserBase(
+            email="owner@example.com",
+            is_admin=True,
+        )
+        user2 = UserBase(
+            email="editor@example.com",
+            is_admin=False,
+        )
+        user3 = UserBase(
+            email="viewer@example.com",
+            is_admin=False,
+        )
 
         # Add ID attributes to simulate DB objects
         user1.id = "user1_id"
@@ -785,7 +797,10 @@ class TestPermission:
     def test_permission_with_wildcard_viewer(self):
         """Test Permission with wildcard viewer."""
         # Create users for testing
-        user1 = UserBase(email="owner@example.com", is_admin=True, groups=[Group(name="Admin")])
+        user1 = UserBase(
+            email="owner@example.com",
+            is_admin=True,
+        )
         user1.id = "user1_id"
 
         permission = Permission(
@@ -809,7 +824,7 @@ class TestPermission:
                 "id": PydanticObjectId(),
                 "email": "owner@example.com",
                 "is_admin": True,
-                "groups": [{"name": "Admin"}],
+                # "groups": [{"name": "Admin"}],
             }
         )
 
@@ -818,7 +833,7 @@ class TestPermission:
                 "id": PydanticObjectId(),
                 "email": "editor@example.com",
                 "is_admin": False,
-                "groups": [{"name": "Editor"}],
+                # "groups": [{"name": "Editor"}],
             }
         )
 
@@ -835,7 +850,10 @@ class TestPermission:
     def test_permission_unique_validation(self):
         """Test validation that prevents users from being in multiple roles."""
         # Create users with the same ID to test validation
-        user = UserBase(email="user@example.com", is_admin=True, groups=[Group(name="Group")])
+        user = UserBase(
+            email="user@example.com",
+            is_admin=True,
+        )
         user.id = "same_id"
 
         # Test user in owners and editors
@@ -866,8 +884,14 @@ class TestPermission:
 
     def test_permission_dict_method(self):
         """Test the dict method for correct serialization."""
-        user1 = UserBase(email="owner@example.com", is_admin=True, groups=[Group(name="Admin")])
-        user2 = UserBase(email="editor@example.com", is_admin=False, groups=[Group(name="Editor")])
+        user1 = UserBase(
+            email="owner@example.com",
+            is_admin=True,
+        )
+        user2 = UserBase(
+            email="editor@example.com",
+            is_admin=False,
+        )
         user1.id = "user1_id"
         user2.id = "user2_id"
 
