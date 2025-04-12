@@ -9,7 +9,7 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-from beanie import Document, PydanticObjectId
+from beanie import Document, Link, PydanticObjectId
 
 from depictio_models.models.base import MongoModel, PyObjectId
 from depictio_models.logging import logger
@@ -147,35 +147,20 @@ class TokenBeanie(TokenBase, Document):
 
 class Group(MongoModel):
     name: str
+    users_ids: List[PyObjectId] = Field(default_factory=list)
 
 
-class GroupBeanie(Group, Document):
-    name: str
-
-    class Settings:
-        name = "groups"  # Collection name
-
-
-class UserBaseGroupLess(MongoModel):
+class UserBase(MongoModel):
     email: EmailStr
     is_admin: bool = False
 
 
-class UserBaseCLIConfig(UserBaseGroupLess):
+class UserBaseCLIConfig(UserBase):
     token: TokenBeanie
 
 
-class GroupWithUsers(MongoModel):
-    name: str
-    users: List[UserBaseGroupLess] = []
-
-
-class UserBase(UserBaseGroupLess):
-    groups: List[Group]
-
-
 class GroupUI(Group):
-    users: List[UserBaseGroupLess] = []
+    users: List[UserBase] = []
 
 
 class CLIConfig(BaseModel):
@@ -202,19 +187,24 @@ class User(UserBase):
     def turn_to_userbase(self):
         model_dump = self.model_dump()
         userbase = UserBase(
-            email=model_dump["email"], is_admin=model_dump["is_admin"], groups=model_dump["groups"]
+            email=model_dump["email"],
+            is_admin=model_dump["is_admin"],
+            # email=model_dump["email"], is_admin=model_dump["is_admin"], groups=model_dump["groups"]
         )
-        return userbase
-
-    def turn_to_userbasegroupless(self):
-        model_dump = self.model_dump()
-        userbase = UserBaseGroupLess(email=model_dump["email"], is_admin=model_dump["is_admin"])
         return userbase
 
 
 class UserBeanie(User, Document):
     class Settings:
         name = "users"
+
+
+class GroupBeanie(Group, Document):
+    name: str
+    users_ids: List[Link[UserBeanie]] = Field(default_factory=list)
+
+    class Settings:
+        name = "groups"  # Collection name
 
 
 class Permission(BaseModel):
