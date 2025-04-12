@@ -3,7 +3,7 @@ import hashlib
 import html
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 import bleach
 from bson import ObjectId
 from pydantic import (
@@ -11,6 +11,7 @@ from pydantic import (
     BaseModel,
     Field,
     GetCoreSchemaHandler,
+    GetJsonSchemaHandler,
     field_serializer,
     model_validator,
     field_validator,
@@ -19,7 +20,7 @@ import re
 
 import json
 
-from pydantic_core import core_schema
+from pydantic_core import CoreSchema, core_schema
 
 from depictio_models.logging import logger
 
@@ -62,6 +63,12 @@ class PyObjectId(ObjectId):
             #     [core_schema.str_schema(), core_schema.is_instance_schema(ObjectId)]
             # ),
         )
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, _core_schema: CoreSchema, handler: GetJsonSchemaHandler
+    ) -> dict[str, Any]:
+        return {"type": "string", "format": "objectid"}
 
     @classmethod
     def validate(cls, v):
